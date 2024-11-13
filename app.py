@@ -1,7 +1,13 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import json
+
+
+# Set page layout to wide
+st.set_page_config(layout="wide")
+
 
 # Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
@@ -23,23 +29,24 @@ selected_view = st.sidebar.radio("Select View", view_options)
 
 # Sidebar filters
 st.sidebar.header("Filters")
-selected_cluster = st.sidebar.selectbox("Select Cluster", sorted(df_total['cluster_id'].unique()))
-selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(), default=df_total['sentiment'].unique())
 
-# Filter data based on selections
-filtered_df = df_total[(df_total['cluster_id'] == selected_cluster) & (df_total['sentiment'].isin(selected_sentiment))]
+# Select cluster by name rather than ID
+unique_cluster_names = sorted(df_total['cluster_name'].unique())
+selected_cluster_name = st.sidebar.selectbox("Select Cluster", unique_cluster_names)
+selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(),
+                                            default=df_total['sentiment'].unique())
+
+# Filter data based on selected cluster name and sentiments
+filtered_df = df_total[(df_total['cluster_name'] == selected_cluster_name) & (df_total['sentiment'].isin(selected_sentiment))]
 
 # Function to visualize embeddings
 def visualize_embeddings(df, coords_col, review_text_column, colour_by_column):
-    # Ensure each entry in coords_col has exactly 2 elements
     if any(len(coords) != 2 for coords in df[coords_col]):
         raise ValueError(f"Each entry in '{coords_col}' must have exactly 2 elements (x and y coordinates)")
 
-    # Create a temporary DataFrame for plotting
     temp_df = df.copy()
     temp_df[["x", "y"]] = temp_df[coords_col].to_list()
 
-    # Create the interactive plot
     fig = px.scatter(
         temp_df,
         x="x",
@@ -49,96 +56,123 @@ def visualize_embeddings(df, coords_col, review_text_column, colour_by_column):
     )
 
     fig.update_layout(
-        legend_title_text=None
+        legend_title_text=None,
+        height=600,  # Increase height for larger visualization
+        width=900    # Increase width for larger visualization
     )
 
-    # Customize the layout
     fig.update_traces(
-        marker=dict(size=5, line=dict(width=2, color="DarkSlateGrey")),
+        marker=dict(size=6, line=dict(width=2, color="DarkSlateGrey")),
         selector=dict(mode="markers+text"),
     )
 
-    # Hide noise clusters by default (if any)
     for trace in fig.data:
-        if trace.name == "-1":  # Assuming -1 is the noise label
+        if trace.name == "-1":
             trace.visible = "legendonly"
 
-    # Remove axis labels and grid lines
     fig.update_xaxes(title="", showgrid=False, zeroline=False, showticklabels=False)
     fig.update_yaxes(title="", showgrid=False, zeroline=False, showticklabels=False)
 
     return fig
 
-# Function to plot reviews over time
-def plot_over_time(df, date_col):
-    daily_counts = (
-        pd.to_datetime(df[date_col])
-        .dt.floor("D")
-        .to_frame()
-        .groupby(date_col)
-        .size()
-        .reset_index(name="count")
+# Function to create diverging sentiment plot by cluster
+def plot_diverging_sentiments(df, sentiment_col, cluster_name_col):
+    # Filter for positive and negative sentiments only
+    sentiment_data = df[df[sentiment_col].isin(['Positive', 'Negative'])]
+
+    # Calculate sentiment counts
+    sentiment_counts = sentiment_data.groupby([cluster_name_col, sentiment_col]).size().unstack(fill_value=0)
+
+    # Separate positive and negative counts
+    sentiment_counts['Positive'] = sentiment_counts.get('Positive', 0)
+    sentiment_counts['Negative'] = -sentiment_counts.get('Negative', 0)  # Flip negative values for left-side plotting
+
+    # Create a diverging bar chart
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        y=sentiment_counts.index,
+        x=sentiment_counts['Positive'],
+        orientation='h',
+        name='Positive',
+        marker=dict(color='green')
+    ))
+    fig.add_trace(go.Bar(
+        y=sentiment_counts.index,
+        x=sentiment_counts['Negative'],
+        orientation='h',
+        name='Negative',
+        marker=dict(color='red')
+    ))
+
+    fig.update_layout(
+        title="Sentiment Frequency by Cluster Name",
+        xaxis_title="Sentiment Frequency",
+        yaxis_title="Cluster Name",
+        barmode='relative',
+        showlegend=True,
+        xaxis=dict(showgrid=True, zeroline=True),
+        yaxis=dict(showgrid=False, zeroline=False)
     )
 
-    fig = px.bar(daily_counts, x=date_col, y="count")
-    fig.update_yaxes(title="", showgrid=False, zeroline=False, showticklabels=False)
     return fig
 
-# Select coordinates column based on view
+# Function to plot number of requests per cluster
+def plot_request_count_by_cluster(df, cluster_name_col):
+    request_counts = df[cluster_name_col].value_counts().reset_index()
+    request_counts.columns = [cluster_name_col, 'Request Count']
+
+    fig = px.bar(
+        request_counts,
+        x=cluster_name_col,
+        y='Request Count',
+        title="Number of Requests per Cluster",
+        labels={cluster_name_col: "Cluster Name", 'Request Count': "Count"},
+        text='Request Count'
+    )
+
+    fig.update_layout(
+        xaxis_title="Cluster Name",
+        yaxis_title="Request Count",
+        showlegend=False
+    )
+
+    return fig
+
+# Display UMAP and Cluster Details with larger dimensions
+st.subheader("2D UMAP Cluster Visualization" if selected_view == "2D UMAP" else "3D UMAP Cluster Visualization")
 if selected_view == "2D UMAP":
     df_total['coords'] = df_total[['umap_x', 'umap_y']].values.tolist()
-    st.subheader("2D UMAP Cluster Visualization")
     fig = visualize_embeddings(df_total, coords_col='coords', review_text_column='sentence', colour_by_column='cluster_name')
 else:
     df_total['coords'] = df_total[['umap_x', 'umap_y', 'umap_z']].values.tolist()
-    st.subheader("3D UMAP Cluster Visualization")
     fig = px.scatter_3d(
         df_total,
         x='umap_x', y='umap_y', z='umap_z',
         color='cluster_name',
         hover_data={'sentence': True}
     )
-
-    # Hide axis labels and set color options
     fig.update_layout(
         legend_title_text=None,
-        showlegend=True
+        showlegend=True,
+        height=600,  # Larger height for 3D plot
+        width=900    # Larger width for 3D plot
     )
     fig.update_traces(marker=dict(size=3, line=dict(width=1, color="DarkSlateGrey")))
 
-# Display the plot in Streamlit
 st.plotly_chart(fig)
 
-# Display Cluster Details
-st.subheader("Cluster Details")
-st.write(f"Showing details for cluster {selected_cluster}")
-st.dataframe(filtered_df[['cluster_name', 'topic', 'sentence', 'similarity', 'category', 'sentiment']])
+# Display Cluster Details Table in an expanded view
+st.subheader(f"Cluster Details for '{selected_cluster_name}'")
+st.dataframe(filtered_df[['cluster_name', 'topic', 'sentence', 'category', 'sentiment', 'similarity']])
 
+# Display Sentiment Frequency and Request Count plots side by side
+st.subheader("Cluster Sentiment and Request Distribution")
+col1, col2 = st.columns(2)
 
-# Function to plot sentiment frequency by cluster name
-def plot_sentiment_frequency_by_cluster(df, sentiment_col, cluster_name_col):
-    sentiment_counts = df.groupby([cluster_name_col, sentiment_col]).size().reset_index(name='count')
+with col1:
+    fig_sentiment = plot_diverging_sentiments(df_total, sentiment_col='sentiment', cluster_name_col='cluster_name')
+    st.plotly_chart(fig_sentiment)
 
-    fig = px.bar(
-        sentiment_counts,
-        x=cluster_name_col,
-        y='count',
-        color=sentiment_col,
-        barmode='group',
-        labels={cluster_name_col: "Cluster Name", sentiment_col: "Sentiment", 'count': 'Frequency'}
-    )
-
-    fig.update_layout(
-        title="Sentiment Frequency by Cluster Name",
-        xaxis_title="Cluster Name",
-        yaxis_title="Frequency",
-        legend_title_text="Sentiment",
-        showlegend=True
-    )
-
-    return fig
-
-# Plot sentiment frequency by cluster
-st.subheader("Sentiment Frequency by Cluster Name")
-fig_sentiment = plot_sentiment_frequency_by_cluster(df_total, sentiment_col='sentiment', cluster_name_col='cluster_name')
-st.plotly_chart(fig_sentiment)
+with col2:
+    fig_request_count = plot_request_count_by_cluster(df_total, cluster_name_col='cluster_name')
+    st.plotly_chart(fig_request_count)
