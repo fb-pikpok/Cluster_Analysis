@@ -13,21 +13,21 @@ from src.constants import OPENAI_KEY
 
 set_llm_cache(SQLiteCache(database_path=".langchain.db"))
 
-llm3 = ChatOpenAI(
-    temperature=0,
-    openai_api_key=OPENAI_KEY,
-    model="gpt-3.5-turbo-1106",
-    cache=True,
-    max_tokens=500,
-)
-
-llm4 = ChatOpenAI(
-    temperature=0,
-    openai_api_key=OPENAI_KEY,
-    model="gpt-4-1106-preview",
-    cache=True,
-    max_tokens=500,
-)
+# llm3 = ChatOpenAI(
+#     temperature=0,
+#     openai_api_key=OPENAI_KEY,
+#     model="gpt-3.5-turbo-1106",
+#     cache=True,
+#     max_tokens=500,
+# )
+#
+# llm4 = ChatOpenAI(
+#     temperature=0,
+#     openai_api_key=OPENAI_KEY,
+#     model="gpt-4-1106-preview",
+#     cache=True,
+#     max_tokens=500,
+# )
 
 
 @st.cache_data(show_spinner=False)
