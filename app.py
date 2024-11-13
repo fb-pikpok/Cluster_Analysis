@@ -163,7 +163,7 @@ st.plotly_chart(fig)
 
 # Display Cluster Details Table in an expanded view
 st.subheader(f"Cluster Details for '{selected_cluster_name}'")
-st.dataframe(filtered_df[['cluster_name', 'topic', 'sentence', 'category', 'sentiment', 'similarity']])
+st.dataframe(filtered_df[['Please rate your overall experience playing Into the Dead: Our Darkest Days','topic', 'sentence', 'category', 'sentiment', 'similarity']])
 
 # Display Sentiment Frequency and Request Count plots side by side
 st.subheader("Cluster Sentiment and Request Distribution")
