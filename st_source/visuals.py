@@ -41,7 +41,6 @@ import json
 #
 #     return fig
 
-import plotly.express as px
 
 
 def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None):
@@ -60,7 +59,7 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
     - fig: A Plotly figure object.
     """
     if z_col:
-        # 3D visualization
+        # 3D visualization with marker outline
         fig = px.scatter_3d(
             df,
             x=x_col,
@@ -69,8 +68,11 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
             color=colour_by_column,
             hover_data={review_text_column: True} if review_text_column else {}
         )
+        fig.update_traces(
+            marker=dict(size=6, line=dict(width=2, color="DarkSlateGrey"))
+        )
     else:
-        # 2D visualization
+        # 2D visualization without marker outline
         fig = px.scatter(
             df,
             x=x_col,
@@ -78,17 +80,24 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
             color=colour_by_column,
             hover_data={review_text_column: True} if review_text_column else {}
         )
+        fig.update_traces(
+            marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey"))
+        )
 
+    # General layout adjustments
     fig.update_layout(
         legend_title_text=None,
         height=600,  # Set height for visualization
-        width=900,  # Set width for visualization
-        title=f"Visualization of {x_col}, {y_col}" + (f", {z_col}" if z_col else "")
+        width=900,   # Set width for visualization
+        title=f"Visualization of {x_col}, {y_col}" + (f", {z_col}" if z_col else ""),
+        xaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True),
+        yaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True)
     )
 
-    fig.update_traces(
-        marker=dict(size=6, line=dict(width=2, color="DarkSlateGrey"))
-    )
+    # Hide noise cluster if exists
+    for trace in fig.data:
+        if trace.name == "-1":
+            trace.visible = "legendonly"
 
     return fig
 
