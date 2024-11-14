@@ -1,84 +1,120 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import json
 import plotly.express as px
+import plotly.graph_objects as go
+import json
 
+# Helper functions
+from st_source.visuals import visualize_embeddings, plot_diverging_sentiments, plot_request_count_by_cluster
+
+# Set page layout to wide
+st.set_page_config(layout="wide")
+
+# Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
-s_db_table_pca_json = 'Data/review_db_table_pca.json'
+s_db_table_preprocessed_json = 'Data/review_db_preprocessed.json'  # Precomputed JSON
 
-# Load Data
-@st.cache_data
+# Load precomputed data
+@st.cache_data(show_spinner=False)
 def load_data(json_path):
     with open(json_path, 'r') as f:
         data = json.load(f)
     df = pd.DataFrame(data)
     return df
 
-# Embed keyword for similarity (replace with actual embedding function)
-def index_embedding(keyword):
-    # Placeholder function for keyword embedding; replace with actual embedding logic
-    return np.random.rand(len(df_total['embedding'][0]))
+df_total = load_data(s_root + s_db_table_preprocessed_json)
 
-# Load preprocessed data with embeddings and clustering results
-df_total = load_data(s_root + s_db_table_pca_json)
+# Set display mode: "ID" for cluster IDs or "Name" for cluster names
+display_mode = st.sidebar.selectbox("Select Display Mode", ["ID", "Name"])
 
-# Sidebar filters
-st.sidebar.header("Filters")
-selected_cluster = st.sidebar.selectbox("Select Cluster", sorted(df_total['kmeans'].unique()))
-selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(), default=df_total['sentiment'].unique())
+# Sidebar options
+st.sidebar.header("Visualization and Clustering Options")
+dimensionality_options = ["UMAP", "PCA", "tSNE"]
+clustering_options = ["hdbscan", "kmeans"]
+selected_dimensionality = st.sidebar.selectbox("Select Dimensionality Reduction", dimensionality_options)
+selected_clustering = st.sidebar.selectbox("Select Clustering Algorithm", clustering_options)
 
-# Filter data based on selections
-filtered_df = df_total[(df_total['kmeans'] == selected_cluster) & (df_total['sentiment'].isin(selected_sentiment))]
+# KMeans cluster size selection, only shows if KMeans is selected
+if selected_clustering == "kmeans":
+    kmeans_cluster_sizes = [5, 10, 15, 20, 35]
+    selected_kmeans_size = st.sidebar.selectbox("Select Number of KMeans Clusters", kmeans_cluster_sizes)
 
-# Full PCA 3D Visualization with varied colors
-st.subheader("3D PCA Visualization")
-fig_pca_3d = px.scatter_3d(
-    df_total,
-    x='first_dim_PCA',
-    y='second_dim_PCA',
-    z='third_dim_PCA',
-    color='kmeans',
-    hover_data=['topic', 'sentence', 'similarity'],
-    color_discrete_sequence=px.colors.qualitative.Bold  # or use any other color palette
-)
-st.plotly_chart(fig_pca_3d)
+# View selection (2D or 3D)
+view_options = ["2D", "3D"]
+selected_view = st.sidebar.radio("Select View", view_options)
 
-# Full UMAP Visualization with varied colors
-st.subheader("UMAP Visualization")
-fig_umap = px.scatter(
-    df_total,
-    x='first_dim_UMAP', y='second_dim_UMAP',
-    color='kmeans',
-    hover_data=['topic', 'sentence', 'similarity'],
-    color_discrete_sequence=px.colors.qualitative.Bold
-)
-st.plotly_chart(fig_umap)
+# Generate the correct clustering column names for IDs and names
+if selected_clustering == "kmeans":
+    clustering_column = f"{selected_clustering}_{selected_kmeans_size}_{selected_dimensionality}_{selected_view}"
+else:
+    clustering_column = f"{selected_clustering}_{selected_dimensionality}_{selected_view}"
 
-# Full t-SNE Visualization with varied colors
-st.subheader("t-SNE Visualization")
-fig_tsne = px.scatter(
-    df_total,
-    x='first_dim_t-SNE', y='second_dim_t-SNE',
-    color='kmeans',
-    hover_data=['topic', 'sentence', 'similarity'],
-    color_discrete_sequence=px.colors.qualitative.Bold
-)
-st.plotly_chart(fig_tsne)
+# Clustering name column
+clustering_name_column = f"{clustering_column}_name"
 
-# Cluster Details
-st.subheader("Cluster Details")
-st.write(f"Showing details for cluster {selected_cluster}")
-st.dataframe(filtered_df[['topic', 'sentence', 'similarity', 'category', 'embedding']])
+# Check if the generated clustering column exists in the DataFrame
+if clustering_column not in df_total.columns:
+    st.error(f"Clustering column '{clustering_column}' does not exist in the data.")
+else:
+    # Determine selection options based on display mode
+    if display_mode == "ID":
+        unique_cluster_values = sorted(df_total[clustering_column].unique())
+        selected_cluster_value = st.sidebar.selectbox("Select Cluster ID", unique_cluster_values)
+    else:
+        unique_cluster_values = sorted(df_total[clustering_name_column].dropna().unique())
+        selected_cluster_value = st.sidebar.selectbox("Select Cluster Name", unique_cluster_values)
 
-# Keyword Similarity Search
-st.subheader("Keyword Similarity Search")
-keyword = st.text_input("Enter keyword to search similar topics")
-if keyword:
-    keyword_embed = index_embedding(keyword)
-    filtered_df['similarity'] = filtered_df['embedding'].apply(lambda x: np.dot(x, keyword_embed))
-    similar_topics = filtered_df.sort_values(by='similarity', ascending=False)
-    st.write("Top Matches:")
-    st.dataframe(similar_topics[['topic', 'sentence', 'similarity']])
+    selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(),
+                                                default=df_total['sentiment'].unique())
 
-# Run the Streamlit app with `streamlit run app.py`
+    # Filter data based on selected clustering and dimensionality reduction
+    if display_mode == "ID":
+        filtered_df = df_total[(df_total[clustering_column] == selected_cluster_value) &
+                               (df_total['sentiment'].isin(selected_sentiment))]
+    else:
+        filtered_df = df_total[(df_total[clustering_name_column] == selected_cluster_value) &
+                               (df_total['sentiment'].isin(selected_sentiment))]
+
+    # Define x, y, z column names based on user selection with correct capitalization
+    dimensionality = selected_dimensionality.upper()  # e.g., "UMAP", "PCA", "tSNE"
+    view_suffix = "2D" if selected_view == "2D" else "3D"
+
+    x_col = f"{clustering_column}_x"
+    y_col = f"{clustering_column}_y"
+    z_col = f"{clustering_column}_z" if selected_view == "3D" else None
+
+    # Check if the generated column names exist in the DataFrame
+    missing_cols = [col for col in [x_col, y_col, z_col] if col and col not in df_total.columns]
+    if missing_cols:
+        st.error(f"One or more selected columns are missing: {missing_cols}")
+    else:
+        # Set color column to either ID or name based on display mode
+        colour_by_column = clustering_name_column if display_mode == "Name" else clustering_column
+
+        # Call visualize_embeddings with correctly formed column names
+        fig = visualize_embeddings(
+            df_total,
+            x_col=x_col,
+            y_col=y_col,
+            z_col=z_col,
+            review_text_column='sentence',
+            colour_by_column=colour_by_column
+        )
+        st.plotly_chart(fig)
+
+    # Display Cluster Details Table in an expanded view
+    st.subheader(f"Cluster Details for Cluster {display_mode}: {selected_cluster_value}")
+    st.dataframe(filtered_df[['topic', 'sentence', 'category', 'sentiment',
+                              'Please rate your overall experience playing Into the Dead: Our Darkest Days']])
+
+    # Display Sentiment Frequency and Request Count plots side by side
+    st.subheader("Cluster Sentiment and Request Distribution")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        fig_sentiment = plot_diverging_sentiments(df_total, sentiment_col='sentiment', cluster_name_col=colour_by_column)
+        st.plotly_chart(fig_sentiment)
+
+    with col2:
+        fig_request_count = plot_request_count_by_cluster(df_total, cluster_name_col=colour_by_column)
+        st.plotly_chart(fig_request_count)
