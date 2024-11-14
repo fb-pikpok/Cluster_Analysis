@@ -4,16 +4,17 @@ import plotly.express as px
 import plotly.graph_objects as go
 import json
 
+# Helper functions
+from st_source.visuals import visualize_embeddings, plot_diverging_sentiments, plot_request_count_by_cluster
 
 # Set page layout to wide
 st.set_page_config(layout="wide")
 
-
 # Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
-s_db_table_hdbscan_json = 'Data/review_db_table_hdbscan.json'
+s_db_table_preprocessed_json = 'Data/review_db_preprocessed.json'  # Precomputed JSON
 
-# Load precomputed data with UMAP, HDBSCAN results, and cluster names
+# Load precomputed data
 @st.cache_data(show_spinner=False)
 def load_data(json_path):
     with open(json_path, 'r') as f:
@@ -21,158 +22,99 @@ def load_data(json_path):
     df = pd.DataFrame(data)
     return df
 
-df_total = load_data(s_root + s_db_table_hdbscan_json)
+df_total = load_data(s_root + s_db_table_preprocessed_json)
+
+# Set display mode: "ID" for cluster IDs or "Name" for cluster names
+display_mode = st.sidebar.selectbox("Select Display Mode", ["ID", "Name"])
 
 # Sidebar options
-view_options = ["2D UMAP", "3D UMAP"]
+st.sidebar.header("Visualization and Clustering Options")
+dimensionality_options = ["UMAP", "PCA", "tSNE"]
+clustering_options = ["hdbscan", "kmeans"]
+selected_dimensionality = st.sidebar.selectbox("Select Dimensionality Reduction", dimensionality_options)
+selected_clustering = st.sidebar.selectbox("Select Clustering Algorithm", clustering_options)
+
+# KMeans cluster size selection, only shows if KMeans is selected
+if selected_clustering == "kmeans":
+    kmeans_cluster_sizes = [5, 10, 15, 20, 35]
+    selected_kmeans_size = st.sidebar.selectbox("Select Number of KMeans Clusters", kmeans_cluster_sizes)
+
+# View selection (2D or 3D)
+view_options = ["2D", "3D"]
 selected_view = st.sidebar.radio("Select View", view_options)
 
-# Sidebar filters
-st.sidebar.header("Filters")
-
-# Select cluster by name rather than ID
-unique_cluster_names = sorted(df_total['cluster_name'].unique())
-selected_cluster_name = st.sidebar.selectbox("Select Cluster", unique_cluster_names)
-selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(),
-                                            default=df_total['sentiment'].unique())
-
-# Filter data based on selected cluster name and sentiments
-filtered_df = df_total[(df_total['cluster_name'] == selected_cluster_name) & (df_total['sentiment'].isin(selected_sentiment))]
-
-# Function to visualize embeddings
-def visualize_embeddings(df, coords_col, review_text_column, colour_by_column):
-    if any(len(coords) != 2 for coords in df[coords_col]):
-        raise ValueError(f"Each entry in '{coords_col}' must have exactly 2 elements (x and y coordinates)")
-
-    temp_df = df.copy()
-    temp_df[["x", "y"]] = temp_df[coords_col].to_list()
-
-    fig = px.scatter(
-        temp_df,
-        x="x",
-        y="y",
-        color=colour_by_column,
-        hover_data={review_text_column: True},
-    )
-
-    fig.update_layout(
-        legend_title_text=None,
-        height=600,  # Increase height for larger visualization
-        width=900    # Increase width for larger visualization
-    )
-
-    fig.update_traces(
-        marker=dict(size=6, line=dict(width=2, color="DarkSlateGrey")),
-        selector=dict(mode="markers+text"),
-    )
-
-    for trace in fig.data:
-        if trace.name == "-1":
-            trace.visible = "legendonly"
-
-    fig.update_xaxes(title="", showgrid=False, zeroline=False, showticklabels=False)
-    fig.update_yaxes(title="", showgrid=False, zeroline=False, showticklabels=False)
-
-    return fig
-
-# Function to create diverging sentiment plot by cluster
-def plot_diverging_sentiments(df, sentiment_col, cluster_name_col):
-    # Filter for positive and negative sentiments only
-    sentiment_data = df[df[sentiment_col].isin(['Positive', 'Negative'])]
-
-    # Calculate sentiment counts
-    sentiment_counts = sentiment_data.groupby([cluster_name_col, sentiment_col]).size().unstack(fill_value=0)
-
-    # Separate positive and negative counts
-    sentiment_counts['Positive'] = sentiment_counts.get('Positive', 0)
-    sentiment_counts['Negative'] = -sentiment_counts.get('Negative', 0)  # Flip negative values for left-side plotting
-
-    # Create a diverging bar chart
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        y=sentiment_counts.index,
-        x=sentiment_counts['Positive'],
-        orientation='h',
-        name='Positive',
-        marker=dict(color='green')
-    ))
-    fig.add_trace(go.Bar(
-        y=sentiment_counts.index,
-        x=sentiment_counts['Negative'],
-        orientation='h',
-        name='Negative',
-        marker=dict(color='red')
-    ))
-
-    fig.update_layout(
-        title="Sentiment Frequency by Cluster Name",
-        xaxis_title="Sentiment Frequency",
-        yaxis_title="Cluster Name",
-        barmode='relative',
-        showlegend=True,
-        xaxis=dict(showgrid=True, zeroline=True),
-        yaxis=dict(showgrid=False, zeroline=False)
-    )
-
-    return fig
-
-# Function to plot number of requests per cluster
-def plot_request_count_by_cluster(df, cluster_name_col):
-    request_counts = df[cluster_name_col].value_counts().reset_index()
-    request_counts.columns = [cluster_name_col, 'Request Count']
-
-    fig = px.bar(
-        request_counts,
-        x=cluster_name_col,
-        y='Request Count',
-        title="Number of Requests per Cluster",
-        labels={cluster_name_col: "Cluster Name", 'Request Count': "Count"},
-        text='Request Count'
-    )
-
-    fig.update_layout(
-        xaxis_title="Cluster Name",
-        yaxis_title="Request Count",
-        showlegend=False
-    )
-
-    return fig
-
-# Display UMAP and Cluster Details with larger dimensions
-st.subheader("2D UMAP Cluster Visualization" if selected_view == "2D UMAP" else "3D UMAP Cluster Visualization")
-if selected_view == "2D UMAP":
-    df_total['coords'] = df_total[['umap_x', 'umap_y']].values.tolist()
-    fig = visualize_embeddings(df_total, coords_col='coords', review_text_column='sentence', colour_by_column='cluster_name')
+# Generate the correct clustering column names for IDs and names
+if selected_clustering == "kmeans":
+    clustering_column = f"{selected_clustering}_{selected_kmeans_size}_{selected_dimensionality}_{selected_view}"
 else:
-    df_total['coords'] = df_total[['umap_x', 'umap_y', 'umap_z']].values.tolist()
-    fig = px.scatter_3d(
-        df_total,
-        x='umap_x', y='umap_y', z='umap_z',
-        color='cluster_name',
-        hover_data={'sentence': True}
-    )
-    fig.update_layout(
-        legend_title_text=None,
-        showlegend=True,
-        height=600,  # Larger height for 3D plot
-        width=900    # Larger width for 3D plot
-    )
-    fig.update_traces(marker=dict(size=3, line=dict(width=1, color="DarkSlateGrey")))
+    clustering_column = f"{selected_clustering}_{selected_dimensionality}_{selected_view}"
 
-st.plotly_chart(fig)
+# Clustering name column
+clustering_name_column = f"{clustering_column}_name"
 
-# Display Cluster Details Table in an expanded view
-st.subheader(f"Cluster Details for '{selected_cluster_name}'")
-st.dataframe(filtered_df[['Please rate your overall experience playing Into the Dead: Our Darkest Days','topic', 'sentence', 'category', 'sentiment', 'similarity']])
+# Check if the generated clustering column exists in the DataFrame
+if clustering_column not in df_total.columns:
+    st.error(f"Clustering column '{clustering_column}' does not exist in the data.")
+else:
+    # Determine selection options based on display mode
+    if display_mode == "ID":
+        unique_cluster_values = sorted(df_total[clustering_column].unique())
+        selected_cluster_value = st.sidebar.selectbox("Select Cluster ID", unique_cluster_values)
+    else:
+        unique_cluster_values = sorted(df_total[clustering_name_column].dropna().unique())
+        selected_cluster_value = st.sidebar.selectbox("Select Cluster Name", unique_cluster_values)
 
-# Display Sentiment Frequency and Request Count plots side by side
-st.subheader("Cluster Sentiment and Request Distribution")
-col1, col2 = st.columns(2)
+    selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(),
+                                                default=df_total['sentiment'].unique())
 
-with col1:
-    fig_sentiment = plot_diverging_sentiments(df_total, sentiment_col='sentiment', cluster_name_col='cluster_name')
-    st.plotly_chart(fig_sentiment)
+    # Filter data based on selected clustering and dimensionality reduction
+    if display_mode == "ID":
+        filtered_df = df_total[(df_total[clustering_column] == selected_cluster_value) &
+                               (df_total['sentiment'].isin(selected_sentiment))]
+    else:
+        filtered_df = df_total[(df_total[clustering_name_column] == selected_cluster_value) &
+                               (df_total['sentiment'].isin(selected_sentiment))]
 
-with col2:
-    fig_request_count = plot_request_count_by_cluster(df_total, cluster_name_col='cluster_name')
-    st.plotly_chart(fig_request_count)
+    # Define x, y, z column names based on user selection with correct capitalization
+    dimensionality = selected_dimensionality.upper()  # e.g., "UMAP", "PCA", "tSNE"
+    view_suffix = "2D" if selected_view == "2D" else "3D"
+
+    x_col = f"{clustering_column}_x"
+    y_col = f"{clustering_column}_y"
+    z_col = f"{clustering_column}_z" if selected_view == "3D" else None
+
+    # Check if the generated column names exist in the DataFrame
+    missing_cols = [col for col in [x_col, y_col, z_col] if col and col not in df_total.columns]
+    if missing_cols:
+        st.error(f"One or more selected columns are missing: {missing_cols}")
+    else:
+        # Set color column to either ID or name based on display mode
+        colour_by_column = clustering_name_column if display_mode == "Name" else clustering_column
+
+        # Call visualize_embeddings with correctly formed column names
+        fig = visualize_embeddings(
+            df_total,
+            x_col=x_col,
+            y_col=y_col,
+            z_col=z_col,
+            review_text_column='sentence',
+            colour_by_column=colour_by_column
+        )
+        st.plotly_chart(fig)
+
+    # Display Cluster Details Table in an expanded view
+    st.subheader(f"Cluster Details for Cluster {display_mode}: {selected_cluster_value}")
+    st.dataframe(filtered_df[['topic', 'sentence', 'category', 'sentiment',
+                              'Please rate your overall experience playing Into the Dead: Our Darkest Days']])
+
+    # Display Sentiment Frequency and Request Count plots side by side
+    st.subheader("Cluster Sentiment and Request Distribution")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        fig_sentiment = plot_diverging_sentiments(df_total, sentiment_col='sentiment', cluster_name_col=colour_by_column)
+        st.plotly_chart(fig_sentiment)
+
+    with col2:
+        fig_request_count = plot_request_count_by_cluster(df_total, cluster_name_col=colour_by_column)
+        st.plotly_chart(fig_request_count)

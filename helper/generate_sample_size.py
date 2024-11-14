@@ -2,7 +2,7 @@ import json
 import random
 import os
 
-def create_sample_json(input_file_path, output_file_path, sample_size=50):
+def create_sample_json(input_file_path, output_file_path, sample_size=600):
     # Read the cleaned JSON data
     with open(input_file_path, 'r', encoding='utf-8') as json_file:
         data = json.load(json_file)
