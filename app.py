@@ -12,8 +12,6 @@ st.set_page_config(layout="wide")
 st.sidebar.header("Upload Your JSON File")
 uploaded_file = st.sidebar.file_uploader("Choose a JSON file", type="json")
 
-
-
 # Check if a file is uploaded
 if uploaded_file is not None:
     # Load data from uploaded file
