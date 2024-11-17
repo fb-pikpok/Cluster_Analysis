@@ -2,16 +2,44 @@ import json
 import logging
 from lingua import Language, LanguageDetectorBuilder
 
-from helper.prompt_templates import prompt_template_translation,prompt_template_topic, prompt_template_topic_view
+# Imports for testing purposes
+from helper.prompt_templates import prompt_template_translation, prompt_template_topic, prompt_template_topic_view
+import os
+import openai
+from dotenv import load_dotenv
+
+load_dotenv()
+openai_api_key = os.getenv("OPENAI_API_KEY")
+openai.api_key = openai_api_key
+client = openai.Client()
+
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+logging.getLogger("openai").setLevel(logging.ERROR)
+logging.getLogger("httpx").setLevel(logging.ERROR)
+
+
+# Initialize token counters
+prompt_tokens = 0
+completion_tokens = 0
+
 # Initialize the language detector
 detector = LanguageDetectorBuilder.from_languages(
     Language.ENGLISH, Language.SPANISH, Language.CHINESE, Language.GERMAN, Language.FRENCH
 ).build()
+
+
+def track_tokens(response):
+    """
+    Updates the global token counters based on the response.
+    """
+    global prompt_tokens, completion_tokens
+    prompt_tokens += response.usage.prompt_tokens
+    completion_tokens += response.usage.completion_tokens
+
 
 def detect_language(reason_text, wish_text):
     """
@@ -39,9 +67,10 @@ def detect_language(reason_text, wish_text):
         return detected_language_wish
     return "unknown"
 
-def translate_entry(entry, prompt_template, client, model):
+
+def translate_entry(entry, prompt_template_translation, client, model):
     """
-    Translates the reason and wish fields of an entry if needed.
+    Translates the review
     """
     reason_text = entry.get("Please tell us why you chose the rating above:", "")
     wish_text = entry.get("If you had a magic wand and you could change, add, or remove anything from the game, what would it be and why?", "")
@@ -52,7 +81,7 @@ def translate_entry(entry, prompt_template, client, model):
     if detected_language not in ["english", "none"]:
         logger.info(f"Translating entry ID {entry['ID']} (Language: {detected_language})")
         try:
-            prompt = prompt_template.format(
+            prompt_translation = prompt_template_translation.format(
                 reason=reason_text or "N/A",
                 wish=wish_text or "N/A"
             )
@@ -60,10 +89,11 @@ def translate_entry(entry, prompt_template, client, model):
                 model=model,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant for translation."},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": prompt_translation},
                 ],
                 max_tokens=1024
             )
+            track_tokens(response)
             translation_text = response.choices[0].message.content
             if "REASON:" in translation_text:
                 entry["Please tell us why you chose the rating above:"] = translation_text.split("REASON:")[1].split("WISH:")[0].strip()
@@ -73,12 +103,13 @@ def translate_entry(entry, prompt_template, client, model):
             logger.error(f"Error translating entry ID {entry['ID']}: {e}")
             raise
 
-def extract_topics(entry, prompt_template, client, model):
+
+def extract_topics(entry, prompt_template_topic, client, model):
     """
     Extracts topics from an entry's combined review.
     """
     combined_review = f"{entry.get('Please tell us why you chose the rating above:', '')} {entry.get('If you had a magic wand and you could change, add, or remove anything from the game, what would it be and why?', '')}"
-    prompt = prompt_template.format(review=combined_review)
+    prompt_topic = prompt_template_topic.format(review=combined_review)
 
     logger.info(f"Extracting topics for entry ID {entry['ID']}")
     try:
@@ -86,24 +117,26 @@ def extract_topics(entry, prompt_template, client, model):
             model=model,
             messages=[
                 {"role": "system", "content": "You are a helpful assistant for game review analysis."},
-                {"role": "user", "content": prompt},
+                {"role": "user", "content": prompt_topic},
             ],
             max_tokens=1024,
             response_format={"type": "json_object"}
         )
+        track_tokens(response)
         return json.loads(response.choices[0].message.content)
     except Exception as e:
         logger.error(f"Error extracting topics for entry ID {entry['ID']}: {e}")
         raise
 
-def analyze_sentiments(entry, topics, prompt_template, client, model):
+
+def analyze_sentiments(entry, topics, prompt_template_topic_view, client, model):
     """
     Performs sentiment analysis on extracted topics.
     """
     entry["topics"] = []
     for topic in topics.get("Topics", []):
         logger.info(f"Analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry['ID']})")
-        prompt = prompt_template.format(
+        prompt_sentiment = prompt_template_topic_view.format(
             review=topic["Context"],
             topic=topic["Topic"]
         )
@@ -112,10 +145,11 @@ def analyze_sentiments(entry, topics, prompt_template, client, model):
                 model=model,
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant expert in sentiment analysis."},
-                    {"role": "user", "content": prompt},
+                    {"role": "user", "content": prompt_sentiment},
                 ],
                 max_tokens=1024
             )
+            track_tokens(response)
             sentiment = response.choices[0].message.content.strip()
             entry["topics"].append({
                 "topic": topic["Topic"],
@@ -127,17 +161,60 @@ def analyze_sentiments(entry, topics, prompt_template, client, model):
             logger.error(f"Error analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry['ID']}): {e}")
             raise
 
-def process_entry(entry, id_counter, translation_template, topic_template, sentiment_template, client, model):
+
+def process_entry(entry, id_counter, prompt_template_translation, prompt_template_topic, prompt_template_topic_view, client, model):
     """
     Processes a single entry: language detection, translation, topic extraction, and sentiment analysis.
     """
+    global prompt_tokens, completion_tokens
+    if id_counter > 1:  # Log token usage before processing each new entry
+        logger.info(f"Tokens used so far: Prompt Tokens: {prompt_tokens}, Completion Tokens: {completion_tokens}")
     entry["ID"] = id_counter
     logger.info(f"Processing entry ID {entry['ID']}")
 
     try:
-        translate_entry(entry, translation_template, client, model)
-        topics = extract_topics(entry, topic_template, client, model)
-        analyze_sentiments(entry, topics, sentiment_template, client, model)
+        translate_entry(entry, prompt_template_translation, client, model)
+        topics = extract_topics(entry, prompt_template_topic, client, model)
+        analyze_sentiments(entry, topics, prompt_template_topic_view, client, model)
     except Exception as e:
         logger.error(f"Error processing entry ID {entry['ID']}: {e}")
         raise
+
+if __name__ == "__main__":
+
+    root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis'
+    final_json_path = os.path.join(root_dir, "Data", "db_prepared.json")
+    output_file_path = os.path.join(root_dir, "Data", "db_analysed.json")
+    corrupted_output_path = os.path.join(root_dir, "Data", "corrupted_entries.json")
+
+    chat_model_name = 'gpt-4o-mini'
+
+    # Load the database
+    with open(final_json_path, 'r', encoding='utf-8') as f:
+        db = json.load(f)
+
+    # Initialize variables
+    id_counter = 1
+    corrupted_entries = []
+
+    for entry in db:
+        try:
+            process_entry(
+                entry,
+                id_counter,
+                prompt_template_translation,
+                prompt_template_topic,
+                prompt_template_topic_view,
+                client,
+                chat_model_name,
+            )
+            id_counter += 1
+        except Exception:
+            corrupted_entries.append(entry)
+
+    # Save results
+    with open(output_file_path, 'w', encoding='utf-8') as f:
+        json.dump(db, f, indent=4, ensure_ascii=False)
+
+    with open(corrupted_output_path, 'w', encoding='utf-8') as f:
+        json.dump(corrupted_entries, f, indent=4, ensure_ascii=False)
