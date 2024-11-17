@@ -11,7 +11,7 @@ import hdbscan
 # Paths
 s_root = os.path.join(os.path.dirname(__file__), '../')
 s_db_embed = os.path.join(s_root, 'Data/review_db_table.json')
-s_output = os.path.join(s_root, 'Data/review_db_preprocessed.json')
+s_output = os.path.join(s_root, 'Data/sentence_embeddings.json')
 
 
 # Load DataFrame with embeddings

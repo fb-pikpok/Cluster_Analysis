@@ -11,7 +11,7 @@ st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
-s_db_table_preprocessed_json = 'Data/review_db_preprocessed.json'  # Precomputed JSON
+s_db_table_preprocessed_json = 'Data/sentence_embeddings.json'  # Precomputed JSON
 
 # Load precomputed data
 @st.cache_data(show_spinner=False)

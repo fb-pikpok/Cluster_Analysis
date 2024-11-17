@@ -22,7 +22,7 @@ from langchain.embeddings import HuggingFaceEmbeddings
 
 # Define paths and parameters
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
-s_db_table_preprocessed_json = 'Data/review_db_preprocessed.json'
+s_db_table_preprocessed_json = 'Data/sentence_embeddings.json'
 
 # Load precomputed data
 df_total = pd.read_json(os.path.join(s_root, s_db_table_preprocessed_json), orient='records')
