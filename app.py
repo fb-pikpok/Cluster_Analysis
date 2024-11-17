@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import json
-
-# Helper functions
 from st_source.visuals import visualize_embeddings, plot_diverging_sentiments, plot_request_count_by_cluster
+from st_source.keywordSearch import initialize_miniLM, index_embedding, get_top_keyword_result
+from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 # Set page layout to wide
 st.set_page_config(layout="wide")
@@ -21,6 +22,13 @@ def load_data(json_path):
     return df
 
 df_total = load_data(s_root + s_db_table_preprocessed_json)
+
+# Cache the embedding model
+@st.cache_resource
+def load_embedding_model():
+    return initialize_miniLM()
+
+embed_model = load_embedding_model()
 
 # Set display mode: "ID" for cluster IDs or "Name" for cluster names
 display_mode = st.sidebar.selectbox("Select Display Mode", ["ID", "Name"])
@@ -116,3 +124,16 @@ else:
     with col2:
         fig_request_count = plot_request_count_by_cluster(df_total, cluster_name_col=colour_by_column)
         st.plotly_chart(fig_request_count)
+
+# Keyword search bar
+st.subheader("Keyword Search")
+keyword = st.text_input("Enter a keyword to search:", "")
+if keyword:
+    # Perform keyword search
+    keyword_embedding = index_embedding(keyword, embed_model)
+    df_total['similarity'] = cosine_similarity(np.vstack(df_total['embedding']), keyword_embedding.reshape(1, -1)).flatten()
+    top_results = df_total.nlargest(20, 'similarity')
+
+    # Display top results
+    st.subheader("Top 20 Results")
+    st.dataframe(top_results[['topic', 'sentence', 'category', 'sentiment', 'similarity']])
