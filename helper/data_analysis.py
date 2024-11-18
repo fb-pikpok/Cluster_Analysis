@@ -1,6 +1,7 @@
 import json
 import logging
 from lingua import Language, LanguageDetectorBuilder
+from pathlib import Path
 
 # Imports for testing purposes
 from helper.prompt_templates import prompt_template_translation, prompt_template_topic, prompt_template_topic_view
@@ -162,14 +163,12 @@ def analyze_sentiments(entry, topics, prompt_template_topic_view, client, model)
             raise
 
 
-def process_entry(entry, id_counter, prompt_template_translation, prompt_template_topic, prompt_template_topic_view, client, model):
+def process_entry(entry, prompt_template_translation, prompt_template_topic, prompt_template_topic_view, client, model):
     """
     Processes a single entry: language detection, translation, topic extraction, and sentiment analysis.
     """
     global prompt_tokens, completion_tokens
-    if id_counter > 1:  # Log token usage before processing each new entry
-        logger.info(f"Tokens used so far: Prompt Tokens: {prompt_tokens}, Completion Tokens: {completion_tokens}")
-    entry["ID"] = id_counter
+    logger.info(f"Tokens used so far: Prompt Tokens: {prompt_tokens}, Completion Tokens: {completion_tokens}")
     logger.info(f"Processing entry ID {entry['ID']}")
 
     try:
@@ -180,12 +179,86 @@ def process_entry(entry, id_counter, prompt_template_translation, prompt_templat
         logger.error(f"Error processing entry ID {entry['ID']}: {e}")
         raise
 
-if __name__ == "__main__":
+# region start Save Data in case of Interruption and load previous progress
+def load_existing_progress(progress_file):
+    """
+    Loads the existing progress file if it exists.
+    Returns the processed data as a dictionary and the set of processed IDs.
+    """
+    if Path(progress_file).exists():
+        logger.info(f"Loading existing progress from {progress_file}")
+        with open(progress_file, 'r', encoding='utf-8') as f:
+            processed_data = json.load(f)
+        processed_ids = {entry["ID"] for entry in processed_data}
+    else:
+        logger.info(f"No existing progress found. Starting fresh.")
+        processed_data = []
+        processed_ids = set()
+    return processed_data, processed_ids
 
+def save_progress(processed_data, progress_file):
+    """
+    Saves the current progress to a file.
+    """
+    try:
+        logger.info(f"Saving progress to {progress_file}")
+        with open(progress_file, 'w', encoding='utf-8') as f:
+            json.dump(processed_data, f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Failed to save progress: {e}")
+        raise
+
+def process_batch(entries, processed_data, processed_ids, progress_file, batch_size=10):
+    """
+    Processes a batch of entries and saves progress periodically.
+    """
+    for entry in entries:
+        if entry["ID"] in processed_ids:
+            logger.info(f"Skipping already processed entry ID {entry['ID']}")
+            continue
+
+        try:
+            process_entry(
+                entry,
+                prompt_template_translation,
+                prompt_template_topic,
+                prompt_template_topic_view,
+                client,
+                chat_model_name
+            )
+            processed_data.append(entry)
+            processed_ids.add(entry["ID"])
+
+            # Save progress after each batch
+            if len(processed_data) % batch_size == 0:
+                save_progress(processed_data, progress_file)
+        except KeyboardInterrupt:
+            logger.warning("Processing interrupted by user. Saving progress...")
+            save_progress(processed_data, progress_file)
+            raise
+        except Exception as e:
+            logger.error(f"Error processing entry ID {entry['ID']}: {e}")
+
+    # Save final progress after completing the batch
+    save_progress(processed_data, progress_file)
+
+def process_entry(entry, prompt_template_translation, prompt_template_topic, prompt_template_topic_view, client, model):
+    """
+    Processes a single entry: language detection, translation, topic extraction, and sentiment analysis.
+    """
+    logger.info(f"Processing entry ID {entry['ID']}")
+    translate_entry(entry, prompt_template_translation, client, model)
+    topics = extract_topics(entry, prompt_template_topic, client, model)
+    analyze_sentiments(entry, topics, prompt_template_topic_view, client, model)
+
+# endregion
+
+
+if __name__ == "__main__":
     root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis'
     final_json_path = os.path.join(root_dir, "Data", "db_prepared.json")
     output_file_path = os.path.join(root_dir, "Data", "db_analysed.json")
-    corrupted_output_path = os.path.join(root_dir, "Data", "corrupted_entries.json")
+    progress_backup_file_path = os.path.join(root_dir, "Data", "db_progress_backup.json")
 
     chat_model_name = 'gpt-4o-mini'
 
@@ -193,28 +266,17 @@ if __name__ == "__main__":
     with open(final_json_path, 'r', encoding='utf-8') as f:
         db = json.load(f)
 
-    # Initialize variables
-    id_counter = 1
-    corrupted_entries = []
+    # Load existing progress
+    processed_data, processed_ids = load_existing_progress(progress_backup_file_path)
 
-    for entry in db:
-        try:
-            process_entry(
-                entry,
-                id_counter,
-                prompt_template_translation,
-                prompt_template_topic,
-                prompt_template_topic_view,
-                client,
-                chat_model_name,
-            )
-            id_counter += 1
-        except Exception:
-            corrupted_entries.append(entry)
+    # Process entries in batches
+    try:
+        process_batch(db, processed_data, processed_ids, progress_backup_file_path, batch_size=10)
+    except KeyboardInterrupt:
+        logger.warning("Interrupted by user. Progress saved.")
+    except Exception as e:
+        logger.error(f"Unexpected error: {e}")
 
-    # Save results
-    with open(output_file_path, 'w', encoding='utf-8') as f:
-        json.dump(db, f, indent=4, ensure_ascii=False)
-
-    with open(corrupted_output_path, 'w', encoding='utf-8') as f:
-        json.dump(corrupted_entries, f, indent=4, ensure_ascii=False)
+    # Save final output after all processing
+    save_progress(processed_data, output_file_path)
+    logger.info(f"Processing completed. Final data saved to {output_file_path}")

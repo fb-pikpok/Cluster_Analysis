@@ -58,13 +58,13 @@ def clean_data(data):
 
 def sample_data(data, sample_size, seed=None):
     """
-    Creates a sampled subset of the data.
+    Creates a sampled subset of the data and assigns unique IDs to each entry.
     Args:
         data (list): List of dictionaries representing the data.
         sample_size (int): Number of entries to sample.
         seed (int, optional): Seed value for reproducible sampling. Defaults to None.
     Returns:
-        list: Sampled data.
+        list: Sampled data with unique IDs assigned.
     """
     try:
         if seed is not None:
@@ -73,12 +73,16 @@ def sample_data(data, sample_size, seed=None):
         logger.info("Sampling data. Sample size: %d", sample_size)
         sample_size = min(sample_size, len(data))
         sampled_data = random.sample(data, sample_size)
-        logger.info("Data sampling completed.")
+
+        # Assign unique IDs to each entry
+        for idx, entry in enumerate(sampled_data, start=1):
+            entry["ID"] = idx
+
+        logger.info("Data sampling completed with unique IDs assigned.")
         return sampled_data
     except Exception as e:
         logger.error("Error sampling data: %s", e)
         raise
-
 
 def save_data_to_json(data, output_json_path):
     """
@@ -118,6 +122,6 @@ if __name__ == "__main__":
 
     # Process steps
     data = load_excel_to_data(excel_path)
-    clean_data = clean_data(data)
-    sampled_data = sample_data(clean_data, 25)
+    cleaned_data = clean_data(data)
+    sampled_data = sample_data(cleaned_data, 25, seed=42)  # Set seed for reproducibility
     save_data_to_json(sampled_data, final_json_path)
