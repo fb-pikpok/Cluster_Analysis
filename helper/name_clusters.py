@@ -149,13 +149,13 @@ def save_data(df, output_path):
 if __name__ == "__main__":
     # Paths and parameters
     s_root = r"C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis"
-    input_file = os.path.join(s_root, "Data", "sentence_embeddings.json")
-    output_file = os.path.join(s_root, "Data", "sentence_embeddings_with_names.json")
+    input_file = os.path.join(s_root, "Data", "db_clustered.json")
+    output_file = os.path.join(s_root, "Data", "db_final.json")
 
-    dimensionality_methods = ["UMAP", "PCA", "tSNE"]  # Dimensionality reduction methods
-    clustering_algorithms = ["hdbscan", "kmeans"]  # Clustering algorithms
+    dimensionality_methods = ["UMAP", "PCA", "tSNE"]
+    clustering_algorithms = ["hdbscan", "kmeans"]
     kmeans_clusters = [5, 10, 15, 20, 35]  # Number of clusters for KMeans
-    max_centers = 8  # Maximum number of representative topics per cluster
+    max_centers = 8  # Maximum number of topics for naming
 
     # Load data
     df_total = load_data(input_file)

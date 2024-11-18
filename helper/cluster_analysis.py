@@ -111,7 +111,7 @@ if __name__ == "__main__":
     # Paths
     s_root = r"C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis"
     input_file = os.path.join(s_root, "Data", "db_embedded_table.json")
-    output_file = os.path.join(s_root, "Data", "sentence_embeddings.json")
+    output_file = os.path.join(s_root, "Data", "db_clustered.json")
 
     # Adjustable parameters
     dimensionality_methods = ['UMAP', 'PCA', 'tSNE']  # Dimensionality reduction methods
