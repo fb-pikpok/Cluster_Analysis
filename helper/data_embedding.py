@@ -7,6 +7,8 @@ from llama_index.embeddings.langchain import LangchainEmbedding
 from langchain.embeddings import HuggingFaceEmbeddings
 import logging
 
+from helper.data_preparation import load_json
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
@@ -93,17 +95,7 @@ def save_to_json(data, file_path):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-def load_json(file_path):
-    """
-    Loads data from a JSON file.
-    Args:
-        file_path (str): The file path to load.
-    Returns:
-        list: The loaded JSON data.
-    """
-    logger.info(f"Loading data from {file_path}")
-    with open(file_path, "r", encoding="utf-8") as f:
-        return json.load(f)
+
 
 if __name__ == "__main__":
     # Example setup for testing the helper

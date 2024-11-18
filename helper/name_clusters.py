@@ -17,7 +17,7 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 client = openai.Client()
 
-def load_data(json_path):
+def load_data_into_df(json_path):
     """
     Loads the JSON data into a DataFrame.
     Args:
@@ -55,7 +55,7 @@ def find_representative_topics(df, cluster_column, cluster_id, max_topics=8):
     logger.info(f"Found {len(representative_topics)} representative topics for cluster ID {cluster_id} in column {cluster_column}.")
     return representative_topics
 
-def generate_cluster_name(topics_list, model="gpt-4o-mini"):
+def generate_cluster_name(topics_list, chat_model_name):
     """
     Generates a concise name for the cluster using OpenAI API.
     Args:
@@ -74,7 +74,7 @@ def generate_cluster_name(topics_list, model="gpt-4o-mini"):
     logger.info("Generating cluster name using OpenAI API.")
     try:
         response = client.chat.completions.create(
-            model=model,
+            model=chat_model_name,
             messages=[
                 {"role": "system", "content": "You are an expert at summarizing topics into concise names."},
                 {"role": "user", "content": prompt_cluster_naming},
@@ -88,7 +88,7 @@ def generate_cluster_name(topics_list, model="gpt-4o-mini"):
         logger.error(f"Error generating cluster name: {e}")
         return "Error"
 
-def process_clusters(df, dimensionality_methods, clustering_algorithms, kmeans_clusters, max_centers):
+def process_clusters(df, dimensionality_methods, clustering_algorithms, kmeans_clusters, max_centers, chat_model_name):
     """
     Processes each cluster to generate names and updates the DataFrame with cluster names.
     Args:
@@ -114,7 +114,7 @@ def process_clusters(df, dimensionality_methods, clustering_algorithms, kmeans_c
                                 if cluster_id == -1:  # Skip noise clusters for HDBSCAN
                                     continue
                                 topics = find_representative_topics(df, cluster_column, cluster_id, max_centers)
-                                cluster_name = generate_cluster_name(topics)
+                                cluster_name = generate_cluster_name(topics, chat_model_name)
                                 cluster_names[(cluster_column, cluster_id)] = cluster_name
                             df[f"{cluster_column}_name"] = df[cluster_column].map(
                                 lambda x: cluster_names.get((cluster_column, x), "Unknown")
@@ -127,7 +127,7 @@ def process_clusters(df, dimensionality_methods, clustering_algorithms, kmeans_c
                             if cluster_id == -1:  # Skip noise clusters for HDBSCAN
                                 continue
                             topics = find_representative_topics(df, cluster_column, cluster_id, max_centers)
-                            cluster_name = generate_cluster_name(topics)
+                            cluster_name = generate_cluster_name(topics, chat_model_name)
                             cluster_names[(cluster_column, cluster_id)] = cluster_name
                         df[f"{cluster_column}_name"] = df[cluster_column].map(
                             lambda x: cluster_names.get((cluster_column, x), "Unknown")
@@ -156,12 +156,13 @@ if __name__ == "__main__":
     clustering_algorithms = ["hdbscan", "kmeans"]
     kmeans_clusters = [5, 10, 15, 20, 35]  # Number of clusters for KMeans
     max_centers = 8  # Maximum number of topics for naming
+    chat_model_name = 'gpt-4o-mini'
 
     # Load data
-    df_total = load_data(input_file)
+    df_total = load_data_into_df(input_file)
 
     # Process clusters and generate names
-    df_total = process_clusters(df_total, dimensionality_methods, clustering_algorithms, kmeans_clusters, max_centers)
+    df_total = process_clusters(df_total, dimensionality_methods, clustering_algorithms, kmeans_clusters, max_centers, chat_model_name)
 
     # Save results
     save_data(df_total, output_file)

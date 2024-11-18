@@ -33,6 +33,21 @@ detector = LanguageDetectorBuilder.from_languages(
 ).build()
 
 
+# Global API settings
+api_settings = {"client": None, "model": None}
+
+def configure_api(api_client, model_name):
+    """
+    Configures the global API client and model.
+    Args:
+        api_client: The initialized OpenAI client.
+        model_name (str): The model name to use.
+    """
+    global api_settings
+    api_settings["client"] = api_client
+    api_settings["model"] = model_name
+
+
 def track_tokens(response):
     """
     Updates the global token counters based on the response.
@@ -40,7 +55,6 @@ def track_tokens(response):
     global prompt_tokens, completion_tokens
     prompt_tokens += response.usage.prompt_tokens
     completion_tokens += response.usage.completion_tokens
-
 
 def detect_language(reason_text, wish_text):
     """
@@ -68,10 +82,9 @@ def detect_language(reason_text, wish_text):
         return detected_language_wish
     return "unknown"
 
-
-def translate_entry(entry, prompt_template_translation, client, model):
+def translate_entry(entry, prompt_template_translation):
     """
-    Translates the review
+    Translates the review.
     """
     reason_text = entry.get("Please tell us why you chose the rating above:", "")
     wish_text = entry.get("If you had a magic wand and you could change, add, or remove anything from the game, what would it be and why?", "")
@@ -86,8 +99,8 @@ def translate_entry(entry, prompt_template_translation, client, model):
                 reason=reason_text or "N/A",
                 wish=wish_text or "N/A"
             )
-            response = client.chat.completions.create(
-                model=model,
+            response = api_settings["client"].chat.completions.create(
+                model=api_settings["model"],
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant for translation."},
                     {"role": "user", "content": prompt_translation},
@@ -104,8 +117,7 @@ def translate_entry(entry, prompt_template_translation, client, model):
             logger.error(f"Error translating entry ID {entry['ID']}: {e}")
             raise
 
-
-def extract_topics(entry, prompt_template_topic, client, model):
+def extract_topics(entry, prompt_template_topic):
     """
     Extracts topics from an entry's combined review.
     """
@@ -114,8 +126,8 @@ def extract_topics(entry, prompt_template_topic, client, model):
 
     logger.info(f"Extracting topics for entry ID {entry['ID']}")
     try:
-        response = client.chat.completions.create(
-            model=model,
+        response = api_settings["client"].chat.completions.create(
+            model=api_settings["model"],
             messages=[
                 {"role": "system", "content": "You are a helpful assistant for game review analysis."},
                 {"role": "user", "content": prompt_topic},
@@ -129,8 +141,7 @@ def extract_topics(entry, prompt_template_topic, client, model):
         logger.error(f"Error extracting topics for entry ID {entry['ID']}: {e}")
         raise
 
-
-def analyze_sentiments(entry, topics, prompt_template_topic_view, client, model):
+def analyze_sentiments(entry, topics, prompt_template_topic_view):
     """
     Performs sentiment analysis on extracted topics.
     """
@@ -142,8 +153,8 @@ def analyze_sentiments(entry, topics, prompt_template_topic_view, client, model)
             topic=topic["Topic"]
         )
         try:
-            response = client.chat.completions.create(
-                model=model,
+            response = api_settings["client"].chat.completions.create(
+                model=api_settings["model"],
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant expert in sentiment analysis."},
                     {"role": "user", "content": prompt_sentiment},
@@ -208,7 +219,7 @@ def save_progress(processed_data, progress_file):
         logger.error(f"Failed to save progress: {e}")
         raise
 
-def process_batch(entries, processed_data, processed_ids, progress_file, batch_size=10):
+def analyse_data(entries, processed_data, processed_ids, progress_file, batch_size=10):
     """
     Processes a batch of entries and saves progress periodically.
     """
@@ -218,14 +229,7 @@ def process_batch(entries, processed_data, processed_ids, progress_file, batch_s
             continue
 
         try:
-            process_entry(
-                entry,
-                prompt_template_translation,
-                prompt_template_topic,
-                prompt_template_topic_view,
-                client,
-                chat_model_name
-            )
+            process_entry(entry)
             processed_data.append(entry)
             processed_ids.add(entry["ID"])
 
@@ -242,14 +246,14 @@ def process_batch(entries, processed_data, processed_ids, progress_file, batch_s
     # Save final progress after completing the batch
     save_progress(processed_data, progress_file)
 
-def process_entry(entry, prompt_template_translation, prompt_template_topic, prompt_template_topic_view, client, model):
+def process_entry(entry):
     """
     Processes a single entry: language detection, translation, topic extraction, and sentiment analysis.
     """
     logger.info(f"Processing entry ID {entry['ID']}")
-    translate_entry(entry, prompt_template_translation, client, model)
-    topics = extract_topics(entry, prompt_template_topic, client, model)
-    analyze_sentiments(entry, topics, prompt_template_topic_view, client, model)
+    translate_entry(entry, prompt_template_translation)
+    topics = extract_topics(entry, prompt_template_topic)
+    analyze_sentiments(entry, topics, prompt_template_topic_view)
 
 # endregion
 
@@ -271,7 +275,7 @@ if __name__ == "__main__":
 
     # Process entries in batches
     try:
-        process_batch(db, processed_data, processed_ids, progress_backup_file_path, batch_size=10)
+        analyse_data(db, processed_data, processed_ids, progress_backup_file_path, batch_size=10)
     except KeyboardInterrupt:
         logger.warning("Interrupted by user. Progress saved.")
     except Exception as e:

@@ -111,6 +111,17 @@ def prepare_file_path(root_path, relative_path):
     """
     return os.path.join(root_path, relative_path)
 
+def load_json(file_path):
+    """
+    Loads data from a JSON file.
+    Args:
+        file_path (str): The file path to load.
+    Returns:
+        list: The loaded JSON data.
+    """
+    logger.info(f"Loading data from {file_path}")
+    with open(file_path, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 # Example usage in main script:
 if __name__ == "__main__":
