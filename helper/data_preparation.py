@@ -128,7 +128,7 @@ if __name__ == "__main__":
     root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
     print(root_dir)
     # File paths
-    excel_path = prepare_file_path(root_dir, "Data/Into the Dead Our Darkest Days_1511resposnes.xlsx")
+    excel_path = prepare_file_path(root_dir, "Data/2024 Trimester 1.xlsx")
     final_json_path = prepare_file_path(root_dir, "Data/db_prepared.json")
 
     # Process steps
