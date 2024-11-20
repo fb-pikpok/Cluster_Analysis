@@ -1,65 +1,68 @@
 from langchain.prompts import PromptTemplate
 
+
+""" 
+Adjust the template below to match your task.
+
+Note: If you change the structure not only the semantics, you may need to adjust the code in the main script as well.
+
+"""
+
+
 prompt_template_translation = PromptTemplate.from_template(
-'''Please translate each section into English if it is not. The sections are separated by labels "REASON" and "WISH".
+'''You are a professional translator. Translate the following text into English if it is not already in English.
 
 [h0]==================================================================[\h0]
-REASON: "兄弟们，我把星空退款的钱拿来买这个了，我做的对吗"
-WISH: "加动态模糊和垂直同步选项"
+TEXT: "兄弟们，我把星空退款的钱拿来买这个了，我做的对吗"
 
-TRANSLATION:
-
-REASON: "Brothers, I used the refund money from the stars to buy this. Did I do the right thing?"
-WISH: "Add dynamic blur and vertical sync options."
-
+TRANSLATION: "Brothers, I used the refund money from the stars to buy this. Did I do the right thing?"
 
 [h0]==================================================================[\h0]
-REASON: "My first D&D experience and I'm enjoying it a lot."
-WISH: "I would like more guidance in the game."
+TEXT: "Me toma demasiado tiempo entrenar caballos."
 
-TRANSLATION:
-
-REASON: "My first D&D experience and I'm enjoying it a lot."
-WISH: "I would like more guidance in the game."
+TRANSLATION: "It takes too much time to train horses."
 
 [h0]==================================================================[\h0]
-REASON: "{reason}"
-WISH: "{wish}"
+TEXT: "Grinding just to get good tack, grain etc. Itâ€™s very time consuming sadly"
+
+TRANSLATION: "Grinding just to get good tack, grain etc. It's very time consuming sadly"
+
+[h0]==================================================================[\h0]
+TEXT: "{text}"
 
 TRANSLATION:
-
 '''
 )
 
 prompt_template_topic = PromptTemplate.from_template(
-'''Please list the most important topics and their respective original context in the review of a game in a json format with "Topic", "Category", "Context" arguments.  No more than 10 topics.
-Topics should be game features.  A feature in the game should be a noun rather than a verb or an adjective.
+'''Please list the most important topics and their respective original context in the review of a game in a JSON format with "Topic", "Category", and "Context" arguments. No more than 10 topics.
+Topics should focus on specific game features or aspects. A feature in the game should be a noun rather than a verb or an adjective.
 Each topic should be categorized as a "fact" or a "request".
 Respond in JSON format.
 
 [h0]==================================================================[\h0]
 REVIEW: 
 
-"The weapon durability in this game is frustrating; my sword breaks after just a few swings. The combat itself is fun, but I wish the durability lasted longer. Also, the audio effects are very immersive during battles."
+"The customization options for characters are so limited, and it's frustrating not to have more outfit choices. Also, why can't I rename my horse after I buy it? However, I do enjoy the free roam mode—riding through open fields feels relaxing and immersive."
 
 TOPICS:
 
 {{"Topics":
     [
         {{
-            "Topic": "Weapon Durability",
+            "Topic": "Character Customization",
             "Category": "request",
-            "Context": "My sword breaks after just a few swings. I wish the durability lasted longer."
+            "Context": "The customization options for characters are so limited, and it's frustrating not to have more outfit choices."
         }},
         {{
-            "Topic": "Combat and Fighting",
-            "Category": "fact",
-            "Context": "The combat itself is fun."
+            "Topic": "Horse Renaming",
+            "Category": "request",
+            "Context": "It's frustrating not to be able to rename my horse after I buy it."
         }},
         {{
-            "Topic": "Audio",
+            "Topic": "Free Roam",
             "Category": "fact",
-            "Context": "The audio effects are very immersive during battles."
+            "Context": "Riding through open fields feels relaxing and immersive."
         }}
     ]
 }}
@@ -67,26 +70,42 @@ TOPICS:
 [h0]==================================================================[\h0]
 REVIEW: 
 
-"Playing during the night adds a thrilling layer to the game. The lack of a proper save feature makes it hard to enjoy it though. Also, there are way too many random encounters that make progress difficult."
+"Too much useless nonsense."
+
+TOPICS:
+
+{{"Topics":
+    [
+        {{"Topic": "Game Content",
+          "Category": "request",
+          "Context": "Too much useless nonsense."
+        }}
+    ]
+}}
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"This game has great mechanics, but the breeding system feels random and unfair. I've bred so many horses, yet the coats and stats don't seem to follow any logical pattern. On the other hand, I appreciate how detailed the horse animations are—it makes the game come alive."
 
 TOPICS:
 
 {{"Topics":
     [
         {{
-            "Topic": "Night",
+            "Topic": "Game Mechanics",
             "Category": "fact",
-            "Context": "Playing during the night adds a thrilling layer to the game."
+            "Context": "This game has great mechanics"
         }},
         {{
-            "Topic": "Save Feature",
+            "Topic": "Breeding System",
             "Category": "request",
-            "Context": "The lack of a proper save feature makes it hard to enjoy fully."
+            "Context": "The breeding system feels random and unfair. Coats and stats don't seem to follow any logical pattern."
         }},
         {{
-            "Topic": "Randomness",
-            "Category": "request",
-            "Context": "There are way too many random encounters that make progress difficult."
+            "Topic": "Horse Animations",
+            "Category": "fact",
+            "Context": "The horse animations are detailed and make the game come alive."
         }}
     ]
 }}
@@ -101,7 +120,7 @@ TOPICS:
 '''
 )
 
-prompt_template_topic_view = PromptTemplate.from_template(
+prompt_template_sentiment = PromptTemplate.from_template(
 '''What's the sentiment of the review with regard to the topic?
 Always answer with 'Positive' or 'Negative' or 'Inconclusive'.
 

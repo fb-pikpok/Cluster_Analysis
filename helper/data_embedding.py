@@ -100,7 +100,7 @@ def save_to_json(data, file_path):
 if __name__ == "__main__":
     # Example setup for testing the helper
     s_root = r"C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis"
-    input_file = os.path.join(s_root, "Data", "db_analysed.json")
+    input_file = os.path.join(s_root, "Data", "db_analysed_empty.json")
     output_file = os.path.join(s_root, "Data", "db_embedded_table.json")
     embed_model_name = "all-MiniLM-L6-v2"  # Change this to your preferred model
     batch_size = 10

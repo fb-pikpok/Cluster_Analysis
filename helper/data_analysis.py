@@ -1,104 +1,95 @@
 import json
-import logging
-from lingua import Language, LanguageDetectorBuilder
 from pathlib import Path
+from lingua import Language, LanguageDetectorBuilder
+from helper.utils import *
 
-# Imports for testing purposes
-from helper.prompt_templates import prompt_template_translation, prompt_template_topic, prompt_template_topic_view
-import os
-import openai
-from dotenv import load_dotenv
-
-load_dotenv()
-openai_api_key = os.getenv("OPENAI_API_KEY")
-openai.api_key = openai_api_key
-client = openai.Client()
-
-
-# Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
-
-logging.getLogger("openai").setLevel(logging.ERROR)
-logging.getLogger("httpx").setLevel(logging.ERROR)
-
-
-# Initialize token counters
-prompt_tokens = 0
-completion_tokens = 0
-
-# Initialize the language detector
+# Initialize language detector
 detector = LanguageDetectorBuilder.from_languages(
     Language.ENGLISH, Language.SPANISH, Language.CHINESE, Language.GERMAN, Language.FRENCH
 ).build()
 
-
-# Global API settings
-api_settings = {"client": None, "model": None}
-
-def configure_api(api_client, model_name):
-    """
-    Configures the global API client and model.
-    Args:
-        api_client: The initialized OpenAI client.
-        model_name (str): The model name to use.
-    """
-    global api_settings
-    api_settings["client"] = api_client
-    api_settings["model"] = model_name
-
+# Initialize global token counters
+prompt_tokens = 0
+completion_tokens = 0
 
 def track_tokens(response):
     """
-    Updates the global token counters based on the response.
+    Updates the global token counters based on the API response.
+
+    Args:
+        response: The API response containing token usage.
     """
     global prompt_tokens, completion_tokens
     prompt_tokens += response.usage.prompt_tokens
     completion_tokens += response.usage.completion_tokens
 
-def detect_language(reason_text, wish_text):
+# region Translation
+
+def detect_player_language(data, id_column, columns_of_interest):
     """
-    Detects the combined language of the given text fields.
+    Detects the language of specified fields for each JSON tuple
+    and adds a new key 'player_language' with the detected language.
+
+    Args:
+        data (list): List of JSON-like dictionaries.
+        id_column (str): Column name to use as the unique identifier (only for logging).
+        columns_of_interest (list): List of column names to detect the language for.
+
+    Returns:
+        list: Updated list of dictionaries with 'player_language' key.
     """
-    def detect_single_text_language(text):
-        if isinstance(text, str) and text.strip():
+    for entry_idx, entry in enumerate(data):
+        entry_id = entry.get(id_column, "unknown")
+
+        # Combine text from specified fields
+        combined_text = " ".join(entry.get(field, "").strip() for field in columns_of_interest if entry.get(field))
+
+        # If the combined text is empty, no language detection is performed
+        if combined_text.strip():
             try:
-                detected_language = detector.detect_language_of(text)
-                return detected_language.name.lower() if detected_language else "none"
-            except AttributeError:
-                return "none"
-        return "none"
+                # Detect language using the provided detector
+                detected_language = detector.detect_language_of(combined_text)
+                entry["player_language"] = detected_language.name.lower()      # Store detected language in "player_language"
+            except Exception as e:
+                logger.error(f"Error detecting language for entry #{entry_id}: {e}")
+                entry["player_language"] = "error"  # Indicate an error during detection
+        else:
+            entry["player_language"] = None  # No language detected for empty text
 
-    detected_language_reason = detect_single_text_language(reason_text)
-    detected_language_wish = detect_single_text_language(wish_text)
+    return data
 
-    if detected_language_reason != "none" and detected_language_reason == detected_language_wish:
-        return detected_language_reason
-    elif detected_language_reason != "none" and detected_language_reason != detected_language_wish:
-        return "mixed"
-    elif detected_language_reason != "none":
-        return detected_language_reason
-    elif detected_language_wish != "none":
-        return detected_language_wish
-    return "unknown"
 
-def translate_entry(entry, prompt_template_translation):
+def translate_data(data, id_column, prompt_template_translation, api_settings, columns_of_interest):
     """
-    Translates the review.
+    Translates specified fields in the dataset if the detected language is not English.
+
+    Args:
+        data (list): List of JSON-like dictionaries.
+        prompt_template_translation (PromptTemplate): Template for translation prompts.
+        api_settings (dict): Dictionary with API settings, including the client and model.
+        columns_of_interest (list): List of column names to combine and translate.
+
+    Returns:
+        list: Updated list with translated 'player_response' fields.
     """
-    reason_text = entry.get("Please tell us why you chose the rating above:", "")
-    wish_text = entry.get("If you had a magic wand and you could change, add, or remove anything from the game, what would it be and why?", "")
-
-    detected_language = detect_language(reason_text, wish_text)
-    entry["language"] = detected_language
-
-    if detected_language not in ["english", "none"]:
-        logger.info(f"Translating entry ID {entry['ID']} (Language: {detected_language})")
+    for entry_idx, entry in enumerate(data):
+        entry_id = entry.get(id_column, "unknown")
         try:
+            # Combine review fields into one text
+            combined_text = " ".join(entry.get(field, "").strip() for field in columns_of_interest if entry.get(field))
+            detected_language = entry.get("player_language", "none")
+            # Skip translation for English or empty responses
+            if detected_language in ["english", "none"] or not combined_text.strip():
+                continue
+
+            logger.info(f"Translating entry ID {entry_id} (Language: {detected_language})")
+
+            # Format the prompt for translation
             prompt_translation = prompt_template_translation.format(
-                reason=reason_text or "N/A",
-                wish=wish_text or "N/A"
+                text=combined_text
             )
+
+            # Make API call to translate
             response = api_settings["client"].chat.completions.create(
                 model=api_settings["model"],
                 messages=[
@@ -107,29 +98,47 @@ def translate_entry(entry, prompt_template_translation):
                 ],
                 max_tokens=1024
             )
-            track_tokens(response)
-            translation_text = response.choices[0].message.content
-            if "REASON:" in translation_text:
-                entry["Please tell us why you chose the rating above:"] = translation_text.split("REASON:")[1].split("WISH:")[0].strip()
-            if "WISH:" in translation_text:
-                entry["If you had a magic wand and you could change, add, or remove anything from the game, what would it be and why?"] = translation_text.split("WISH:")[1].strip()
+
+            # Extract translation from the response
+            translation_text = response.choices[0].message.content.strip()
+
+            # Save the translated text in the 'player_response' key
+            entry["player_response"] = translation_text
+
         except Exception as e:
-            logger.error(f"Error translating entry ID {entry['ID']}: {e}")
+            logger.error(f"Error translating entry ID {entry_id}: {e}")
             raise
 
-def extract_topics(entry, prompt_template_topic):
-    """
-    Extracts topics from an entry's combined review.
-    """
-    combined_review = f"{entry.get('Please tell us why you chose the rating above:', '')} {entry.get('If you had a magic wand and you could change, add, or remove anything from the game, what would it be and why?', '')}"
-    prompt_topic = prompt_template_topic.format(review=combined_review)
+    return data
 
-    logger.info(f"Extracting topics for entry ID {entry['ID']}")
+# endregion
+
+
+# region Extract Topics and Sentiments
+def extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns_of_interest):
+    """
+    All specified review fields are combined into a single review text.
+    The combined review text is then used to extract topics using the API.
+
+    Args:
+        entry (dict): The review entry containing multiple fields to combine.
+        entry_id (str): The ID from the users specified ID column (only used for logging).
+        prompt_template_topic (PromptTemplate): The template used for topic extraction.
+        api_settings (dict): API configuration from utils.py.
+        columns_of_interest (list): List of fields to combine for the review.
+
+    Returns:
+        dict: Extracted topics in JSON format.
+    """
+    combined_review = " ".join(entry.get(field, "").strip() for field in columns_of_interest)
+    prompt_topic = prompt_template_topic.format(review=combined_review)
+    logger.info(f"Extracting topics for entry ID {entry_id}")
+
     try:
         response = api_settings["client"].chat.completions.create(
             model=api_settings["model"],
             messages=[
-                {"role": "system", "content": "You are a helpful assistant for game review analysis."},
+                {"role": "system", "content": "You are an expert in extracting topics from user reviews."},
                 {"role": "user", "content": prompt_topic},
             ],
             max_tokens=1024,
@@ -138,28 +147,37 @@ def extract_topics(entry, prompt_template_topic):
         track_tokens(response)
         return json.loads(response.choices[0].message.content)
     except Exception as e:
-        logger.error(f"Error extracting topics for entry ID {entry['ID']}: {e}")
-        raise
+        logger.error(f"Error extracting topics for entry ID {entry_id}: {e}")
+        return {"error": str(e)}
 
-def analyze_sentiments(entry, topics, prompt_template_topic_view):
+
+def analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_settings):
     """
-    Performs sentiment analysis on extracted topics.
+    Takes the topics extracted from extract_topics.
+    Analyzes the sentiment of each topic using the API.
+    Appends the sentiment data to the topics! -> no return value.
+
+    Args:
+        entry (dict): The JSON entry being processed.
+        entry_id (str): The ID of the entry (only used for logging).
+        topics (dict): Topics extracted from the review.
+        prompt_template_sentiment (PromptTemplate): Template for sentiment analysis.
+        api_settings (dict): API configuration from utils.py.
     """
     entry["topics"] = []
     for topic in topics.get("Topics", []):
-        logger.info(f"Analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry['ID']})")
-        prompt_sentiment = prompt_template_topic_view.format(
-            review=topic["Context"],
-            topic=topic["Topic"]
-        )
+        logger.info(f"Analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry_id})")
         try:
+            prompt_sentiment = prompt_template_sentiment.format(
+                review=topic["Context"], topic=topic["Topic"]
+            )
             response = api_settings["client"].chat.completions.create(
                 model=api_settings["model"],
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant expert in sentiment analysis."},
+                    {"role": "system", "content": "You are a helpful assistant for sentiment analysis."},
                     {"role": "user", "content": prompt_sentiment},
                 ],
-                max_tokens=1024
+                max_tokens=1024,
             )
             track_tokens(response)
             sentiment = response.choices[0].message.content.strip()
@@ -170,117 +188,133 @@ def analyze_sentiments(entry, topics, prompt_template_topic_view):
                 "sentence": topic["Context"]
             })
         except Exception as e:
-            logger.error(f"Error analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry['ID']}): {e}")
+            logger.error(f"Error analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry_id}): {e}")
             raise
 
 
-def process_entry(entry, prompt_template_translation, prompt_template_topic, prompt_template_topic_view, client, model):
+def process_entry(entry, id_column, prompt_template_topic, prompt_template_sentiment, api_settings, columns_of_interest):
     """
-    Processes a single entry: language detection, translation, topic extraction, and sentiment analysis.
+    Processes a single entry by extracting topics (extract_topics)
+    and analyzing their sentiments (analyze_sentiments).
+
+    Args:
+        entry (dict): The JSON entry to process.
+        id_column (str): The ID column name.
+        prompt_template_topic (PromptTemplate): Template for topic extraction.
+        prompt_template_sentiment (PromptTemplate): Template for sentiment analysis.
+        api_settings (dict): API configuration.
+        columns_of_interest (list): List of fields to combine for the review.
+
+    Returns:
+        dict: Processed entry with topics and sentiments.
+        (after this step the progress is saved).
     """
     global prompt_tokens, completion_tokens
     logger.info(f"Tokens used so far: Prompt Tokens: {prompt_tokens}, Completion Tokens: {completion_tokens}")
-    logger.info(f"Processing entry ID {entry['ID']}")
 
     try:
-        translate_entry(entry, prompt_template_translation, client, model)
-        topics = extract_topics(entry, prompt_template_topic, client, model)
-        analyze_sentiments(entry, topics, prompt_template_topic_view, client, model)
+        entry_id = entry.get(id_column, "unknown")
+        topics = extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns_of_interest)
+        analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_settings)
     except Exception as e:
-        logger.error(f"Error processing entry ID {entry['ID']}: {e}")
-        raise
+        logger.error(f"Error processing entry ID {entry[{id_column}]}: {e}")
+    return entry
 
-# region start Save Data in case of Interruption and load previous progress
-def load_existing_progress(progress_file):
+# endregion
+
+
+# region Save/Load Progress
+def load_existing_progress(output_path, id_column):
     """
-    Loads the existing progress file if it exists.
-    Returns the processed data as a dictionary and the set of processed IDs.
+    Loads existing progress from the output file if it exists.
+    Returns the processed data as a list and the set of processed IDs.
+
+    Args:
+        output_path (str): Path to the output JSON file.
+        id_column (str): The column name where IDs are stored.
+
+    Returns:
+        tuple: A list of processed data and a set of processed IDs.
     """
-    if Path(progress_file).exists():
-        logger.info(f"Loading existing progress from {progress_file}")
-        with open(progress_file, 'r', encoding='utf-8') as f:
+    if Path(output_path).exists():
+        logger.info(f"Loading existing progress from {output_path}")
+        with open(output_path, "r", encoding="utf-8") as f:
             processed_data = json.load(f)
-        processed_ids = {entry["ID"] for entry in processed_data}
+        processed_ids = {entry[id_column] for entry in processed_data}
     else:
         logger.info(f"No existing progress found. Starting fresh.")
         processed_data = []
         processed_ids = set()
     return processed_data, processed_ids
 
-def save_progress(processed_data, progress_file):
+
+def save_progress(processed_data, output_path):
     """
-    Saves the current progress to a file.
+    If the process gets interrupted, all progress up until that point is saved to the output file.
+    (no separate backup file will be created, every progress gets appended to the output file)
     """
     try:
-        logger.info(f"Saving progress to {progress_file}")
-        with open(progress_file, 'w', encoding='utf-8') as f:
+        logger.info(f"Saving progress to {output_path}")
+        with open(output_path, "w", encoding="utf-8") as f:
             json.dump(processed_data, f, indent=4, ensure_ascii=False)
     except Exception as e:
         logger.error(f"Failed to save progress: {e}")
         raise
 
-def analyse_data(entries, processed_data, processed_ids, progress_file, batch_size=10):
-    """
-    Processes a batch of entries and saves progress periodically.
-    """
-    for entry in entries:
-        if entry["ID"] in processed_ids:
-            logger.info(f"Skipping already processed entry ID {entry['ID']}")
-            continue
-
-        try:
-            process_entry(entry)
-            processed_data.append(entry)
-            processed_ids.add(entry["ID"])
-
-            # Save progress after each batch
-            if len(processed_data) % batch_size == 0:
-                save_progress(processed_data, progress_file)
-        except KeyboardInterrupt:
-            logger.warning("Processing interrupted by user. Saving progress...")
-            save_progress(processed_data, progress_file)
-            raise
-        except Exception as e:
-            logger.error(f"Error processing entry ID {entry['ID']}: {e}")
-
-    # Save final progress after completing the batch
-    save_progress(processed_data, progress_file)
-
-def process_entry(entry):
-    """
-    Processes a single entry: language detection, translation, topic extraction, and sentiment analysis.
-    """
-    logger.info(f"Processing entry ID {entry['ID']}")
-    translate_entry(entry, prompt_template_translation)
-    topics = extract_topics(entry, prompt_template_topic)
-    analyze_sentiments(entry, topics, prompt_template_topic_view)
-
 # endregion
 
 
-if __name__ == "__main__":
-    root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis'
-    final_json_path = os.path.join(root_dir, "Data", "db_prepared.json")
-    output_file_path = os.path.join(root_dir, "Data", "db_analysed.json")
-    progress_backup_file_path = os.path.join(root_dir, "Data", "db_progress_backup.json")
+# Main Function
+def analyse_data(translated_data, id_column, output_path, prompt_template_topic, prompt_template_sentiment,
+                 api_settings, columns_of_interest, batch_size=10):
+    """
+    Main function to analyse translated data with fail-safe batching and progress saving.
+    Flow how one entity is processed:
+    load_existing_progress -> if entry not in processed_ids:
+        -> process_entry -> extract_topics -> analyze_sentiments -> save_progress
+    else: skip entry
 
-    chat_model_name = 'gpt-4o-mini'
+    Args:
+        translated_data (list): Dataset to process.
+        id_column (str): Column name where IDs are stored.
+        output_path (str): Path to save analysed data.
+        prompt_template_topic (PromptTemplate): Template for topic extraction.
+        prompt_template_sentiment (PromptTemplate): Template for sentiment analysis.
+        api_settings (dict): API configuration.
+        columns_of_interest (list): List of columns that should be combined.
+        batch_size (int): Number of entries to process before saving progress (default 10).
+    """
+    # Load existing progress if available
+    processed_data, processed_ids = load_existing_progress(output_path, id_column)
 
-    # Load the database
-    with open(final_json_path, 'r', encoding='utf-8') as f:
-        db = json.load(f)
-
-    # Load existing progress
-    processed_data, processed_ids = load_existing_progress(progress_backup_file_path)
-
-    # Process entries in batches
     try:
-        analyse_data(db, processed_data, processed_ids, progress_backup_file_path, batch_size=10)
+        batch_counter = 0
+        for entry in translated_data:
+            entry_id = entry.get(id_column)
+            if entry_id in processed_ids:
+                logger.info(f"Skipping already processed entry ID {entry_id}")
+                continue
+
+            # Entry has not been processed yet, therefore it gets injected into the process_entry function
+            processed_entry = process_entry(entry, id_column, prompt_template_topic, prompt_template_sentiment,
+                                            api_settings, columns_of_interest)
+            processed_data.append(processed_entry)
+            processed_ids.add(entry_id)
+            batch_counter += 1
+
+            if batch_counter >= batch_size:
+                save_progress(processed_data, output_path)
+                logger.info(f"Progress saved after processing {batch_counter} entries.")
+                batch_counter = 0
+
+    # Save progress in case something goes wrong
     except KeyboardInterrupt:
-        logger.warning("Interrupted by user. Progress saved.")
+        logger.warning("Processing interrupted by user. Saving progress...")
+        save_progress(processed_data, output_path)
+        raise
     except Exception as e:
         logger.error(f"Unexpected error: {e}")
+    finally:
+        save_progress(processed_data, output_path)
+        logger.info("Processing completed. Final progress saved.")
 
-    # Save final output after all processing
-    save_progress(processed_data, output_file_path)
-    logger.info(f"Processing completed. Final data saved to {output_file_path}")

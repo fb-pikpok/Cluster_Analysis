@@ -11,7 +11,7 @@ root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
 print(root_dir)
 # File paths
 excel_path = prepare_file_path(root_dir, "Data/Into the Dead Our Darkest Days_1511resposnes.xlsx")
-final_json_path = prepare_file_path(root_dir, "Data/db_prepared.json")
+final_json_path = prepare_file_path(root_dir, "Data/db_prepared_HRC.json")
 
 random_seed = 42
 # Process steps
