@@ -31,6 +31,29 @@ def configure_api(api_client, model_name):
 # endregion
 
 # region Readers and Writers
+def load_excel_to_data(excel_path):
+    """
+    Loads an Excel file and converts it into a list of dictionaries,
+    ensuring proper encoding.
+
+    Args:
+        excel_path (str): Path to the input Excel file.
+    Returns:
+        list: List of dictionaries representing the data.
+    """
+    try:
+        logger.info("Loading Excel file: %s", excel_path)
+        dataframe = pd.read_excel(excel_path, engine='openpyxl')  # Ensure the correct engine is used
+        data_as_dict = dataframe.to_dict(orient='records')
+        if data_as_dict:
+            logger.info("Removing the first entry of the dataset.")
+            data_as_dict = data_as_dict[1:]  # Remove the first row if necessary
+        logger.info("Excel data successfully loaded and converted to dictionary.")
+        return data_as_dict
+    except Exception as e:
+        logger.error("Error loading Excel: %s", e)
+        raise
+
 def save_to_json(data, output_path):
     """
     Saves data to a JSON file with proper encoding.
@@ -47,6 +70,86 @@ def save_to_json(data, output_path):
         logger.error(f"Error saving JSON: {e}")
         raise
 
+def save_df_as_json(data, file_path):
+    """
+    Saves data to a JSON file.
+    Args:
+        data (list or pd.DataFrame): The data to save.
+        file_path (str): The file path to save the JSON.
+    """
+    logger.info(f"Saving data to {file_path}")
+    if isinstance(data, pd.DataFrame):
+        data = data.to_dict(orient="records")
+    with open(file_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+
+# def json_to_table(json_data):
+#     """
+#     Converts the embedded JSON data into a flat table format.
+#     Args:
+#         json_data (list): List of review entries containing topics and embeddings.
+#     Returns:
+#         pd.DataFrame: A flattened table of all topics with additional fields.
+#     """
+#     logger.info("Converting JSON data to a table format.")
+#     df_total = pd.DataFrame()
+#
+#     for review_entry in json_data:
+#         if "topics" in review_entry and isinstance(review_entry["topics"], list):
+#             df_gp = pd.DataFrame(review_entry["topics"])
+#             for key, value in review_entry.items():
+#                 if key != "topics":
+#                     df_gp[key] = value
+#             df_total = pd.concat([df_total, df_gp], ignore_index=True)
+#
+#     logger.info("Conversion to table format completed.")
+#     return df_total
+
+def json_to_table(json_data):
+    """
+    Converts the embedded JSON data into a flat table format.
+    Args:
+        json_data (list): List of review entries containing topics and embeddings.
+    Returns:
+        pd.DataFrame: A flattened table of all topics with additional fields.
+    """
+    logger.info("Converting JSON data to a table format.")
+
+    # Collect flattened records
+    flattened_records = []
+    for review_entry in json_data:
+        if "topics" in review_entry and isinstance(review_entry["topics"], list):
+            for topic in review_entry["topics"]:
+                # Combine the topic with additional fields in the review entry
+                flattened_record = {**topic, **{k: v for k, v in review_entry.items() if k != "topics"}}
+                flattened_records.append(flattened_record)
+
+    # Convert flattened records to a DataFrame
+    df_total = pd.DataFrame.from_records(flattened_records)
+    logger.info("Conversion to table format completed.")
+    return df_total
+
+def save_data_for_streamlit(df, output_path):
+    """
+    Saves the updated DataFrame to a JSON file.
+    Args:
+        df (pd.DataFrame): DataFrame to save.
+        output_path (str): Path to save the JSON file.
+    """
+    logger.info(f"Saving updated data to {output_path}")
+    df.to_json(output_path, orient="records", indent=4)
+    logger.info("Data saved successfully.")
+
+def load_json_into_df(json_path):
+    """
+    Loads the JSON data into a DataFrame.
+    Args:
+        json_path (str): Path to the JSON file.
+    Returns:
+        pd.DataFrame: Loaded DataFrame.
+    """
+    logger.info(f"Loading data from {json_path}")
+    return pd.read_json(json_path, orient="records")
 
 def read_json(file_path):
     """
@@ -178,30 +281,6 @@ def clean_json_data(data):
     cleaned_count = len(cleaned_data)
     logger.info(f"Cleaned {original_count - cleaned_count} entries from the dataset.")
     return cleaned_data
-
-def load_excel_to_data(excel_path):
-    """
-    Loads an Excel file and converts it into a list of dictionaries,
-    ensuring proper encoding.
-
-    Args:
-        excel_path (str): Path to the input Excel file.
-    Returns:
-        list: List of dictionaries representing the data.
-    """
-    try:
-        logger.info("Loading Excel file: %s", excel_path)
-        dataframe = pd.read_excel(excel_path, engine='openpyxl')  # Ensure the correct engine is used
-        data_as_dict = dataframe.to_dict(orient='records')
-        if data_as_dict:
-            logger.info("Removing the first entry of the dataset.")
-            data_as_dict = data_as_dict[1:]  # Remove the first row if necessary
-        logger.info("Excel data successfully loaded and converted to dictionary.")
-        return data_as_dict
-    except Exception as e:
-        logger.error("Error loading Excel: %s", e)
-        raise
-
 
 def generate_ID(data):
     """

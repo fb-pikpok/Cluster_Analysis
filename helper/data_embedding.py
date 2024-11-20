@@ -48,6 +48,7 @@ def process_batch(batch, embed_model, b_override, embed_key="topic"):
     Returns:
         list: The batch with updated embeddings.
     """
+    processed_batch = []  # Collect processed results
     for review_entry in batch:
         if isinstance(review_entry, dict) and "topics" in review_entry and isinstance(review_entry["topics"], list):
             for d_topic in review_entry["topics"]:
@@ -55,45 +56,12 @@ def process_batch(batch, embed_model, b_override, embed_key="topic"):
                     # Check if the key exists and embedding should be created or overridden
                     if embed_key in d_topic and ("embedding" not in d_topic or b_override):
                         d_topic["embedding"] = embed_text(d_topic[embed_key], embed_model)
-                        # Release memory
-                        torch.cuda.empty_cache()
-                        gc.collect()
-    return batch
+            processed_batch.append(review_entry)  # Append the processed entry
+            # Release memory
+            torch.cuda.empty_cache()
+            gc.collect()
+    return processed_batch
 
-def convert_to_table(json_data):
-    """
-    Converts the embedded JSON data into a flat table format.
-    Args:
-        json_data (list): List of review entries containing topics and embeddings.
-    Returns:
-        pd.DataFrame: A flattened table of all topics with additional fields.
-    """
-    logger.info("Converting JSON data to a table format.")
-    df_total = pd.DataFrame()
-
-    for review_entry in json_data:
-        if "topics" in review_entry and isinstance(review_entry["topics"], list):
-            df_gp = pd.DataFrame(review_entry["topics"])
-            for key, value in review_entry.items():
-                if key != "topics":
-                    df_gp[key] = value
-            df_total = pd.concat([df_total, df_gp], ignore_index=True)
-
-    logger.info("Conversion to table format completed.")
-    return df_total
-
-def save_to_json(data, file_path):
-    """
-    Saves data to a JSON file.
-    Args:
-        data (list or pd.DataFrame): The data to save.
-        file_path (str): The file path to save the JSON.
-    """
-    logger.info(f"Saving data to {file_path}")
-    if isinstance(data, pd.DataFrame):
-        data = data.to_dict(orient="records")
-    with open(file_path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=4, ensure_ascii=False)
 
 
 
@@ -122,7 +90,7 @@ if __name__ == "__main__":
         data[batch_start:batch_end] = batch
 
     # Convert the data to table format
-    df_table = convert_to_table(data)
+    df_table = json_to_table(data)
 
     # Save the final JSON table
     save_to_json(df_table, output_file)
