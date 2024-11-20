@@ -11,7 +11,7 @@ st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'
-s_db_table_preprocessed_json = 'Data/sentence_embeddings.json'  # Precomputed JSON
+s_db_table_preprocessed_json = 'Data/db_final.json'  # Precomputed JSON
 
 # Load precomputed data
 @st.cache_data(show_spinner=False)
@@ -42,7 +42,7 @@ selected_clustering = st.sidebar.selectbox("Select Clustering Algorithm", cluste
 
 # KMeans cluster size selection, only shows if KMeans is selected
 if selected_clustering == "kmeans":
-    kmeans_cluster_sizes = [5, 10, 15, 20, 35]
+    kmeans_cluster_sizes = [15, 20, 25, 30]
     selected_kmeans_size = st.sidebar.selectbox("Select Number of KMeans Clusters", kmeans_cluster_sizes)
 
 # View selection (2D or 3D)
@@ -111,7 +111,7 @@ else:
     # Display Cluster Details Table in an expanded view
     st.subheader(f"Cluster Details for Cluster {display_mode}: {selected_cluster_value}")
     st.dataframe(filtered_df[['topic', 'sentence', 'category', 'sentiment',
-                              'Please rate your overall experience playing Into the Dead: Our Darkest Days']])
+                              'Unnamed: 0', 'End Date']])
 
     # Display Sentiment Frequency and Request Count plots side by side
     st.subheader("Cluster Sentiment and Request Distribution")
