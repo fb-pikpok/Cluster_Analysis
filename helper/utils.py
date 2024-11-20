@@ -11,7 +11,6 @@ logger = logging.getLogger(__name__)
 logging.getLogger("httpx").setLevel(logging.ERROR)      # Supress API HTTP request logs
 
 
-
 # region API related
 api_settings = {"client": None, "model": None}
 
@@ -174,7 +173,6 @@ def read_json(file_path):
     except Exception as e:
         print(f"An unexpected error occurred while reading the file '{file_path}': {e}")
         raise
-
 
 # endregion
 
