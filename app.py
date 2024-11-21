@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 from st_source.visuals import visualize_embeddings, plot_diverging_sentiments, plot_request_count_by_cluster
-from st_source.keywordSearch import initialize_miniLM, index_embedding, get_top_keyword_result
+# from st_source.keywordSearch import initialize_miniLM, index_embedding, get_top_keyword_result
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 from plotly.colors import qualitative
