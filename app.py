@@ -42,7 +42,7 @@ selected_clustering = st.sidebar.selectbox("Select Clustering Algorithm", cluste
 
 # KMeans cluster size selection, only shows if KMeans is selected
 if selected_clustering == "kmeans":
-    kmeans_cluster_sizes = [15, 20, 25, 30]
+    kmeans_cluster_sizes = [15, 20, 25, 50]
     selected_kmeans_size = st.sidebar.selectbox("Select Number of KMeans Clusters", kmeans_cluster_sizes)
 
 # View selection (2D or 3D)
