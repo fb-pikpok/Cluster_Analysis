@@ -110,8 +110,7 @@ else:
 
     # Display Cluster Details Table in an expanded view
     st.subheader(f"Cluster Details for Cluster {display_mode}: {selected_cluster_value}")
-    st.dataframe(filtered_df[['topic', 'sentence', 'category', 'sentiment',
-                              'Unnamed: 0', 'End Date']])
+    st.dataframe(filtered_df[['topic', 'sentence', 'category', 'sentiment','is_current_subscriber', 'ever_been_subscriber', 'spending','prestige_rank']])
 
     # Display Sentiment Frequency and Request Count plots side by side
     st.subheader("Cluster Sentiment and Request Distribution")
