@@ -35,12 +35,12 @@ if uploaded_file is not None:
 
     df_total = load_data(uploaded_file)
 
-    # Cache the embedding model
-    @st.cache_resource
-    def load_embedding_model():
-        return initialize_miniLM()
-
-    embed_model = load_embedding_model()
+    # # Cache the embedding model
+    # @st.cache_resource
+    # def load_embedding_model():
+    #     return initialize_miniLM()
+    #
+    # embed_model = load_embedding_model()
 
     # Sidebar filters
     st.sidebar.header("Visualization and Clustering Options")
@@ -181,18 +181,18 @@ if uploaded_file is not None:
         else:
             st.warning("No request count data available for the selected filters.")
 
-    # Keyword search bar
-    st.subheader("Keyword Search")
-    keyword = st.text_input("Enter a keyword to search:", "")
-    if keyword:
-        # Perform keyword search
-        keyword_embedding = index_embedding(keyword, embed_model)
-        df_total['similarity'] = cosine_similarity(np.vstack(df_total['embedding']), keyword_embedding.reshape(1, -1)).flatten()
-        top_results = df_total.nlargest(20, 'similarity')
-
-        # Display top results
-        st.subheader("Top 20 Results")
-        st.dataframe(top_results[['topic', 'sentence', 'category', 'sentiment', 'similarity']])
+    # # Keyword search bar
+    # st.subheader("Keyword Search")
+    # keyword = st.text_input("Enter a keyword to search:", "")
+    # if keyword:
+    #     # Perform keyword search
+    #     keyword_embedding = index_embedding(keyword, embed_model)
+    #     df_total['similarity'] = cosine_similarity(np.vstack(df_total['embedding']), keyword_embedding.reshape(1, -1)).flatten()
+    #     top_results = df_total.nlargest(20, 'similarity')
+    #
+    #     # Display top results
+    #     st.subheader("Top 20 Results")
+    #     st.dataframe(top_results[['topic', 'sentence', 'category', 'sentiment', 'similarity']])
 
 else:
     st.warning("Please upload a JSON file to get started.")
