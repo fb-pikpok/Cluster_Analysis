@@ -1,46 +1,6 @@
-import streamlit as st
-import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import json
-
-
-
-# def visualize_embeddings(df, coords_col, review_text_column, colour_by_column):
-#     if any(len(coords) != 2 for coords in df[coords_col]):
-#         raise ValueError(f"Each entry in '{coords_col}' must have exactly 2 elements (x and y coordinates)")
-#
-#     temp_df = df.copy()
-#     temp_df[["x", "y"]] = temp_df[coords_col].to_list()
-#
-#     fig = px.scatter(
-#         temp_df,
-#         x="x",
-#         y="y",
-#         color=colour_by_column,
-#         hover_data={review_text_column: True},
-#     )
-#
-#     fig.update_layout(
-#         legend_title_text=None,
-#         height=600,  # Increase height for larger visualization
-#         width=900    # Increase width for larger visualization
-#     )
-#
-#     fig.update_traces(
-#         marker=dict(size=6, line=dict(width=2, color="DarkSlateGrey")),
-#         selector=dict(mode="markers+text"),
-#     )
-#
-#     for trace in fig.data:
-#         if trace.name == "-1":
-#             trace.visible = "legendonly"
-#
-#     fig.update_xaxes(title="", showgrid=False, zeroline=False, showticklabels=False)
-#     fig.update_yaxes(title="", showgrid=False, zeroline=False, showticklabels=False)
-#
-#     return fig
-
 
 
 def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None):
@@ -164,19 +124,54 @@ def plot_request_count_by_cluster(df, cluster_name_col):
 
     return fig
 
+def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None, color_map=None):
+    """
+    Visualize embeddings in 2D or 3D with consistent colors for clusters.
 
-def visualize_embeddings_2(df, x_col, y_col, color_col, z_col=None, title="Embedding Visualization"):
+    Parameters:
+    - df: DataFrame containing the data to visualize.
+    - x_col: Column name for the x-axis.
+    - y_col: Column name for the y-axis.
+    - z_col: Optional column name for the z-axis (for 3D visualization).
+    - review_text_column: Column name for the review text to display on hover.
+    - colour_by_column: Column name for the values to color by.
+    - color_map: Dictionary mapping cluster values to colors.
+
+    Returns:
+    - fig: A Plotly figure object.
+    """
     if z_col:
-        fig = px.scatter_3d(df, x=x_col, y=y_col, z=z_col, color=color_col, hover_data={'sentence': True})
+        fig = px.scatter_3d(
+            df,
+            x=x_col,
+            y=y_col,
+            z=z_col,
+            color=colour_by_column,
+            hover_data={review_text_column: True} if review_text_column else {},
+            color_discrete_map=color_map  # Use the color map
+        )
     else:
-        fig = px.scatter(df, x=x_col, y=y_col, color=color_col, hover_data={'sentence': True})
+        fig = px.scatter(
+            df,
+            x=x_col,
+            y=y_col,
+            color=colour_by_column,
+            hover_data={review_text_column: True} if review_text_column else {},
+            color_discrete_map=color_map  # Use the color map
+        )
 
+    # General layout adjustments
     fig.update_layout(
         legend_title_text=None,
-        height=600,  # Increase height for larger visualization
-        width=900,  # Increase width for larger visualization
-        title=title
+        height=600,  # Set height for visualization
+        width=900,   # Set width for visualization
+        title=f"Visualization of {x_col}, {y_col}" + (f", {z_col}" if z_col else ""),
+        xaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True),
+        yaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True)
     )
 
-    fig.update_traces(marker=dict(size=6, line=dict(width=2, color="DarkSlateGrey")))
+    fig.update_traces(marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey")))
+
     return fig
+
+

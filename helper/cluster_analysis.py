@@ -62,34 +62,73 @@ def dimensionality_reduction(mat, method, n_components, seed, perplexity=None):
     return model.fit_transform(mat)
 
 
-def apply_clustering(
+def apply_hdbscan(
+    df,
+    mat,
+    dimensionality_methods,
+    output_path,
+    hdbscan_params=None,
+    include_2d=True,
+    include_3d=True
+):
+    """
+    Applies HDBSCAN clustering first, followed by dimensionality reduction for visualization.
+    """
+    if hdbscan_params is None:
+        hdbscan_params = {"min_cluster_size": 10, "min_samples": 8, "cluster_selection_epsilon": 0.5}
+
+    results = []  # List to hold HDBSCAN results
+
+    # Perform clustering in the high-dimensional space
+    logger.info(f"Applying HDBSCAN in the original high-dimensional space with params: {hdbscan_params}")
+    hdbscan_clusterer = hdbscan.HDBSCAN(**hdbscan_params)
+    hdbscan_labels = hdbscan_clusterer.fit_predict(mat)
+
+    # Add cluster labels to the DataFrame
+    df['hdbscan_highdim'] = hdbscan_labels
+
+    for method in dimensionality_methods:
+        for n_dims in [2, 3]:
+            if (n_dims == 2 and not include_2d) or (n_dims == 3 and not include_3d):
+                continue
+
+            dim_suffix = '2D' if n_dims == 2 else '3D'
+
+            # Dimensionality Reduction
+            logger.info(f"Applying {method} for {dim_suffix} visualization.")
+            reduced_coords = dimensionality_reduction(mat, method, n_components=n_dims, seed=42)
+
+            # Collect visualization results
+            hdbscan_data = pd.DataFrame({
+                f'hdbscan_{method}_{dim_suffix}_x': reduced_coords[:, 0],
+                f'hdbscan_{method}_{dim_suffix}_y': reduced_coords[:, 1],
+                f'hdbscan_{method}_{dim_suffix}_z': reduced_coords[:, 2] if n_dims == 3 else None,
+                f'hdbscan_{method}_{dim_suffix}': hdbscan_labels  # Reuse the same cluster labels
+            })
+            results.append(hdbscan_data)
+
+    # Combine HDBSCAN results and return
+    df_new_columns = pd.concat(results, axis=1)
+    df = pd.concat([df, df_new_columns], axis=1)
+    logger.info("HDBSCAN clustering and dimensionality reduction completed.")
+
+    return df
+
+
+def apply_kmeans(
     df,
     mat,
     dimensionality_methods,
     kmeans_clusters,
     output_path,
-    hdbscan_params=None,
     kmeans_seed=42,
     include_2d=True,
     include_3d=True
 ):
     """
-    Performs clustering and dimensionality reduction on the embeddings.
-    Args:
-        df (pd.DataFrame): DataFrame with embeddings.
-        mat (np.ndarray): Matrix of embeddings.
-        dimensionality_methods (list): List of dimensionality reduction methods ('UMAP', 'PCA', 'tSNE').
-        kmeans_clusters (list): List of cluster counts for KMeans.
-        output_path (str): Path to save the output JSON file.
-        hdbscan_params (dict, optional): Parameters for HDBSCAN clustering.
-        kmeans_seed (int, optional): Random seed for KMeans.
-        include_2d (bool, optional): Whether to include 2D dimensionality reduction results.
-        include_3d (bool, optional): Whether to include 3D dimensionality reduction results.
+    Applies KMeans clustering and dimensionality reduction.
     """
-    if hdbscan_params is None:
-        hdbscan_params = {"min_cluster_size": 10, "min_samples": 8, "cluster_selection_epsilon": 0.5}
-
-    results = []  # List to hold all new columns and their values
+    results = []  # List to hold KMeans results
 
     for method in dimensionality_methods:
         for n_dims in [2, 3]:
@@ -101,21 +140,6 @@ def apply_clustering(
             # Dimensionality Reduction
             reduced_coords = dimensionality_reduction(mat, method, n_components=n_dims, seed=kmeans_seed)
 
-            # HDBSCAN Clustering
-            logger.info(f"Applying HDBSCAN on {method} {dim_suffix} with params: {hdbscan_params}")
-            hdbscan_clusterer = hdbscan.HDBSCAN(**hdbscan_params)
-            hdbscan_labels = hdbscan_clusterer.fit_predict(reduced_coords)
-
-            # Collect HDBSCAN results
-            hdbscan_data = pd.DataFrame({
-                f'hdbscan_{method}_{dim_suffix}_x': reduced_coords[:, 0],
-                f'hdbscan_{method}_{dim_suffix}_y': reduced_coords[:, 1],
-                f'hdbscan_{method}_{dim_suffix}_z': reduced_coords[:, 2] if n_dims == 3 else None,
-                f'hdbscan_{method}_{dim_suffix}': hdbscan_labels
-            })
-            results.append(hdbscan_data)
-
-            # KMeans Clustering
             for n_clusters in kmeans_clusters:
                 logger.info(f"Applying KMeans with {n_clusters} clusters on {method} {dim_suffix}.")
                 kmeans_model = KMeans(n_clusters=n_clusters, random_state=kmeans_seed)
@@ -130,14 +154,12 @@ def apply_clustering(
                 })
                 results.append(kmeans_data)
 
-    # Concatenate all new columns to the original DataFrame
+    # Combine KMeans results and return
     df_new_columns = pd.concat(results, axis=1)
     df = pd.concat([df, df_new_columns], axis=1)
+    logger.info("KMeans clustering completed.")
 
-    # Save the final DataFrame to JSON
-    logger.info(f"Saving results to {output_path}")
-    df.to_json(output_path, orient='records', indent=4)
-    logger.info("Clustering and dimensionality reduction completed.")
+    return df
 
 
 if __name__ == "__main__":

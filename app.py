@@ -5,6 +5,7 @@ from st_source.visuals import visualize_embeddings, plot_diverging_sentiments, p
 from st_source.keywordSearch import initialize_miniLM, index_embedding, get_top_keyword_result
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from plotly.colors import qualitative
 
 # Set page layout to wide
 st.set_page_config(layout="wide")
@@ -19,6 +20,13 @@ def load_data(json_path):
     with open(json_path, 'r') as f:
         data = json.load(f)
     df = pd.DataFrame(data)
+
+    # Handle 'prestige_rank' column: replace empty strings with 0 and convert to integers
+    df['prestige_rank'] = pd.to_numeric(df['prestige_rank'].replace("", 0), errors='coerce').fillna(0).astype(int)
+
+    # Handle 'ever_been_subscriber': replace empty strings with 0 and convert to integers
+    df['ever_been_subscriber'] = pd.to_numeric(df['ever_been_subscriber'].replace("", 0), errors='coerce').fillna(0).astype(int)
+
     return df
 
 df_total = load_data(s_root + s_db_table_preprocessed_json)
@@ -30,10 +38,7 @@ def load_embedding_model():
 
 embed_model = load_embedding_model()
 
-# Set display mode: "ID" for cluster IDs or "Name" for cluster names
-display_mode = st.sidebar.selectbox("Select Display Mode", ["ID", "Name"])
-
-# Sidebar options
+# Sidebar filters
 st.sidebar.header("Visualization and Clustering Options")
 dimensionality_options = ["UMAP", "PCA", "tSNE"]
 clustering_options = ["hdbscan", "kmeans"]
@@ -49,80 +54,128 @@ if selected_clustering == "kmeans":
 view_options = ["2D", "3D"]
 selected_view = st.sidebar.radio("Select View", view_options)
 
+# Sentiment filter
+selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(),
+                                            default=df_total['sentiment'].unique())
+
+# Prestige rank slider
+prestige_rank_min = st.sidebar.slider("Minimum Prestige Rank", min_value=0, max_value=25, value=0)
+
+# Hide Noise Checkbox
+hide_noise = st.sidebar.checkbox("Hide Noise", value=False)
+
+# Filter Spenders Checkbox
+filter_spenders = st.sidebar.checkbox("Only Show Spenders", value=False)
+
+# Display mode: "ID" for cluster IDs or "Name" for cluster names
+display_mode = st.sidebar.selectbox("Select Display Mode", ["ID", "Name"])
+
 # Generate the correct clustering column names for IDs and names
 if selected_clustering == "kmeans":
     clustering_column = f"{selected_clustering}_{selected_kmeans_size}_{selected_dimensionality}_{selected_view}"
 else:
     clustering_column = f"{selected_clustering}_{selected_dimensionality}_{selected_view}"
 
-# Clustering name column
 clustering_name_column = f"{clustering_column}_name"
 
-# Check if the generated clustering column exists in the DataFrame
-if clustering_column not in df_total.columns:
-    st.error(f"Clustering column '{clustering_column}' does not exist in the data.")
+# Add "All Clusters" option to the cluster selection
+if display_mode == "ID":
+    cluster_options = ["All Clusters"] + sorted(df_total[clustering_column].dropna().unique().tolist())
 else:
-    # Determine selection options based on display mode
+    cluster_options = ["All Clusters"] + sorted(df_total[clustering_name_column].dropna().unique().tolist())
+
+selected_cluster_value = st.sidebar.selectbox("Select Cluster", cluster_options)
+
+# Define filtered DataFrame
+filtered_df = df_total[
+    (df_total['prestige_rank'] >= prestige_rank_min) &  # Apply prestige rank filter
+    (df_total['sentiment'].isin(selected_sentiment))    # Apply sentiment filter
+]
+
+# Apply "Hide Noise" filter
+if hide_noise:
     if display_mode == "ID":
-        unique_cluster_values = sorted(df_total[clustering_column].unique())
-        selected_cluster_value = st.sidebar.selectbox("Select Cluster ID", unique_cluster_values)
+        filtered_df = filtered_df[filtered_df[clustering_column] != -1]
     else:
-        unique_cluster_values = sorted(df_total[clustering_name_column].dropna().unique())
-        selected_cluster_value = st.sidebar.selectbox("Select Cluster Name", unique_cluster_values)
+        filtered_df = filtered_df[filtered_df[clustering_name_column] != "Unknown"]
 
-    selected_sentiment = st.sidebar.multiselect("Select Sentiment", df_total['sentiment'].unique(),
-                                                default=df_total['sentiment'].unique())
+# Apply "Only Show Spenders" filter
+if filter_spenders:
+    filtered_df = filtered_df[filtered_df['ever_been_subscriber'] == 1]
 
-    # Filter data based on selected clustering and dimensionality reduction
+if selected_cluster_value != "All Clusters":
     if display_mode == "ID":
-        filtered_df = df_total[(df_total[clustering_column] == selected_cluster_value) &
-                               (df_total['sentiment'].isin(selected_sentiment))]
+        filtered_df = filtered_df[filtered_df[clustering_column] == selected_cluster_value]
     else:
-        filtered_df = df_total[(df_total[clustering_name_column] == selected_cluster_value) &
-                               (df_total['sentiment'].isin(selected_sentiment))]
+        filtered_df = filtered_df[filtered_df[clustering_name_column] == selected_cluster_value]
 
-    # Define x, y, z column names based on user selection with correct capitalization
-    dimensionality = selected_dimensionality.upper()  # e.g., "UMAP", "PCA", "tSNE"
-    view_suffix = "2D" if selected_view == "2D" else "3D"
+# Generate a fixed color map for clusters
+color_palette = qualitative.Set2  # Example Plotly color palette
+max_colors = len(color_palette)
 
+# Generate unique cluster values
+unique_clusters = sorted(df_total[clustering_column].dropna().unique())
+if display_mode == "Name":
+    unique_clusters = sorted(df_total[clustering_name_column].dropna().unique())
+
+# Create a color map dictionary
+color_map = {cluster: color_palette[i % max_colors] for i, cluster in enumerate(unique_clusters)}
+
+# Cluster Visualization
+if not filtered_df.empty:
     x_col = f"{clustering_column}_x"
     y_col = f"{clustering_column}_y"
     z_col = f"{clustering_column}_z" if selected_view == "3D" else None
-
-    # Check if the generated column names exist in the DataFrame
     missing_cols = [col for col in [x_col, y_col, z_col] if col and col not in df_total.columns]
+
     if missing_cols:
         st.error(f"One or more selected columns are missing: {missing_cols}")
     else:
-        # Set color column to either ID or name based on display mode
-        colour_by_column = clustering_name_column if display_mode == "Name" else clustering_column
-
-        # Call visualize_embeddings with correctly formed column names
         fig = visualize_embeddings(
-            df_total,
+            filtered_df,
             x_col=x_col,
             y_col=y_col,
             z_col=z_col,
             review_text_column='sentence',
-            colour_by_column=colour_by_column
+            colour_by_column=clustering_name_column if display_mode == "Name" else clustering_column,
+            color_map=color_map  # Pass the color map for consistent coloring
         )
         st.plotly_chart(fig)
+else:
+    st.warning("No data available for the selected filters (visualization).")
 
-    # Display Cluster Details Table in an expanded view
-    st.subheader(f"Cluster Details for Cluster {display_mode}: {selected_cluster_value}")
-    st.dataframe(filtered_df[['topic', 'sentence', 'category', 'sentiment','is_current_subscriber', 'ever_been_subscriber', 'spending','prestige_rank']])
+# Cluster Details Table
+st.subheader(f"Cluster Details for {selected_cluster_value if selected_cluster_value != 'All Clusters' else 'All Clusters'}")
+if not filtered_df.empty:
+    st.dataframe(filtered_df[['topic', 'sentence', 'category', 'sentiment', 'is_current_subscriber',
+                              'ever_been_subscriber', 'spending', 'prestige_rank']])
+else:
+    st.warning("No data available for the selected filters (details).")
 
-    # Display Sentiment Frequency and Request Count plots side by side
-    st.subheader("Cluster Sentiment and Request Distribution")
-    col1, col2 = st.columns(2)
+# Sentiment and Request Count Plots
+st.subheader("Cluster Sentiment and Request Distribution")
+col1, col2 = st.columns(2)
 
-    with col1:
-        fig_sentiment = plot_diverging_sentiments(df_total, sentiment_col='sentiment', cluster_name_col=colour_by_column)
+with col1:
+    if not filtered_df.empty:
+        fig_sentiment = plot_diverging_sentiments(
+            filtered_df,
+            sentiment_col='sentiment',
+            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
+        )
         st.plotly_chart(fig_sentiment)
+    else:
+        st.warning("No sentiment data available for the selected filters.")
 
-    with col2:
-        fig_request_count = plot_request_count_by_cluster(df_total, cluster_name_col=colour_by_column)
+with col2:
+    if not filtered_df.empty:
+        fig_request_count = plot_request_count_by_cluster(
+            filtered_df,
+            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
+        )
         st.plotly_chart(fig_request_count)
+    else:
+        st.warning("No request count data available for the selected filters.")
 
 # Keyword search bar
 st.subheader("Keyword Search")
