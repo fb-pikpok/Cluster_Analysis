@@ -42,7 +42,11 @@ def detect_player_language(data, id_column, columns_of_interest):
         entry_id = entry.get(id_column, "unknown")
 
         # Combine text from specified fields
-        combined_text = " ".join(entry.get(field, "").strip() for field in columns_of_interest if entry.get(field))
+        combined_text = " ".join(
+            str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
+            for field in columns_of_interest
+            if entry.get(field) is not None  # Ensure the field value is not None
+        )
 
         # If the combined text is empty, no language detection is performed
         if combined_text.strip():
@@ -76,7 +80,11 @@ def translate_data(data, id_column, prompt_template_translation, api_settings, c
         entry_id = entry.get(id_column, "unknown")
         try:
             # Combine review fields into one text
-            combined_text = " ".join(entry.get(field, "").strip() for field in columns_of_interest if entry.get(field))
+            combined_text = " ".join(
+                str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
+                for field in columns_of_interest
+                if entry.get(field)
+            )
             detected_language = entry.get("player_language", "none")
             # Skip translation for English or empty responses
             if detected_language in ["english", "none"] or not combined_text.strip():
@@ -130,7 +138,11 @@ def extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns
     Returns:
         dict: Extracted topics in JSON format.
     """
-    combined_review = " ".join(entry.get(field, "").strip() for field in columns_of_interest)
+    combined_review = " ".join(
+        str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
+        for field in columns_of_interest
+        if entry.get(field) is not None  # Ensure the field value is not None
+    )
     prompt_topic = prompt_template_topic.format(review=combined_review)
     logger.info(f"Extracting topics for entry ID {entry_id}")
 
