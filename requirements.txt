@@ -15,3 +15,4 @@ langchain-community
 langchain-openai
 llama-index-embeddings-openai
 llama-index-embeddings-langchain
+openpyxl
