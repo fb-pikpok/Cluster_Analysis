@@ -35,34 +35,34 @@ TRANSLATION:
 )
 
 prompt_template_topic = PromptTemplate.from_template(
-'''Please list the most important topics and their respective original context in the review of a game in a JSON format with "Topic", "Category", and "Context" arguments. No more than 10 topics.
-Topics should focus on specific game features or aspects. A feature in the game should be a noun rather than a verb or an adjective.
-Each topic should be categorized as a "fact" or a "request".
+'''
+Please analyze the review and extract the most important topics relevant to frustrations in the game in a JSON format with "Topic", "Category", and "Context" arguments. Avoid repeating the central feature "Show Jumping" in every topic unless it is strictly necessary. 
+Focus on specific aspects or features that players find frustrating. No more than 10 topics.
+
+- "Topic" should focus on a specific game feature or aspect.
+- "Category" should be either "fact" or "request".
+- "Context" should be a direct excerpt from the review that explains the topic.
+
 Respond in JSON format.
 
 [h0]==================================================================[\h0]
 REVIEW: 
 
-"The customization options for characters are so limited, and it's frustrating not to have more outfit choices. Also, why can't I rename my horse after I buy it? However, I do enjoy the free roam mode—riding through open fields feels relaxing and immersive."
+"The camera during show jumping feels awkward—it’s hard to follow the horse smoothly. Also, the hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
 
 TOPICS:
 
-{{"Topics":
-    [
+{{
+    "Topics": [
         {{
-            "Topic": "Character Customization",
+            "Topic": "Camera Movement",
             "Category": "request",
-            "Context": "The customization options for characters are so limited, and it's frustrating not to have more outfit choices."
+            "Context": "The camera during show jumping feels awkward—it’s hard to follow the horse smoothly."
         }},
         {{
-            "Topic": "Horse Renaming",
+            "Topic": "Fence Hitboxes",
             "Category": "request",
-            "Context": "It's frustrating not to be able to rename my horse after I buy it."
-        }},
-        {{
-            "Topic": "Free Roam",
-            "Category": "fact",
-            "Context": "Riding through open fields feels relaxing and immersive."
+            "Context": "The hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
         }}
     ]
 }}
@@ -70,15 +70,21 @@ TOPICS:
 [h0]==================================================================[\h0]
 REVIEW: 
 
-"Too much useless nonsense."
+"There’s too much grind to unlock better horses. It feels like you have to repeat the same thing endlessly. Also, it’s annoying how the controls for lining up the horse before a jump are so imprecise."
 
 TOPICS:
 
-{{"Topics":
-    [
-        {{"Topic": "Game Content",
-          "Category": "request",
-          "Context": "Too much useless nonsense."
+{{
+    "Topics": [
+        {{
+            "Topic": "Progression Grind",
+            "Category": "request",
+            "Context": "There’s too much grind to unlock better horses. It feels like you have to repeat the same thing endlessly."
+        }},
+        {{
+            "Topic": "Alignment Controls",
+            "Category": "request",
+            "Context": "It’s annoying how the controls for lining up the horse before a jump are so imprecise."
         }}
     ]
 }}
@@ -86,26 +92,21 @@ TOPICS:
 [h0]==================================================================[\h0]
 REVIEW: 
 
-"This game has great mechanics, but the breeding system feels random and unfair. I've bred so many horses, yet the coats and stats don't seem to follow any logical pattern. On the other hand, I appreciate how detailed the horse animations are—it makes the game come alive."
+"The physics during collisions feel off—it’s like the horse freezes instead of reacting naturally. But overall, I like how realistic the jump animations are."
 
 TOPICS:
 
-{{"Topics":
-    [
+{{
+    "Topics": [
         {{
-            "Topic": "Game Mechanics",
-            "Category": "fact",
-            "Context": "This game has great mechanics"
-        }},
-        {{
-            "Topic": "Breeding System",
+            "Topic": "Collision Physics",
             "Category": "request",
-            "Context": "The breeding system feels random and unfair. Coats and stats don't seem to follow any logical pattern."
+            "Context": "The physics during collisions feel off—it’s like the horse freezes instead of reacting naturally."
         }},
         {{
-            "Topic": "Horse Animations",
+            "Topic": "Animations",
             "Category": "fact",
-            "Context": "The horse animations are detailed and make the game come alive."
+            "Context": "I like how realistic the jump animations are."
         }}
     ]
 }}
@@ -119,6 +120,7 @@ TOPICS:
 
 '''
 )
+
 
 prompt_template_sentiment = PromptTemplate.from_template(
 '''What's the sentiment of the review with regard to the topic?
