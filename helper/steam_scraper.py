@@ -144,8 +144,9 @@ if __name__ == "__main__":
     # Example Usage
 
     # Game details
-    appname = "RISK"  # the game name
-    appid = 1128810  # the game appid on Steam
+    #https: // store.steampowered.com / app / 455690 / Pixel_Puzzles_Junior_Jigsaw /
+    appname = "Pixel_Puzzles_Junior_Jigsaw"  # the game name
+    appid = 455690  # the game appid on Steam
 
     # the params of the API
     params = {
@@ -157,18 +158,18 @@ if __name__ == "__main__":
     }
 
     # time interval
-    end_time = datetime(2024, 11, 1, 0, 0, 0)
-    start_time = datetime(2024, 9, 1, 0, 0, 0)
+    end_time = datetime(2020, 5, 1, 0, 0, 0)
+    start_time = datetime(2020, 1, 1, 0, 0, 0)
 
     # Example 1: Normal call (no time filtering)
-    # print("Fetching all reviews...")
-    # reviews = fetch_reviews(appid, params)
-    # print(f"Fetched {len(reviews)} reviews in total.")
+    print("Fetching all reviews...")
+    reviews = fetch_reviews(appid, params)
+    print(f"Fetched {len(reviews)} reviews in total.")
 
     # Example 2: Time-filtered call
-    time_filtered_reviews = fetch_reviews_time_stamp(appid, params, start_time, end_time)
-    print(f"Fetched {len(time_filtered_reviews)} reviews in the specified time range.")
-    save_to_json(time_filtered_reviews, f"{appname}_reviews.json")
+    # time_filtered_reviews = fetch_reviews_time_stamp(appid, params, start_time, end_time)
+    # print(f"Fetched {len(time_filtered_reviews)} reviews in the specified time range.")
+    # save_to_json(time_filtered_reviews, f"{appname}_reviews.json")
 
 
 # What does the parameter 'recent' do?
