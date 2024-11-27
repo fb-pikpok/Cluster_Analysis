@@ -251,3 +251,31 @@ if not filtered_df.empty:
 else:
     st.warning("No data available for the selected filters (table).")
 # endregion
+
+
+# region Sentiment bar and requests chart
+
+# Sentiment and Request Count Plots
+st.subheader("Cluster Sentiment and Request Distribution")
+col1, col2 = st.columns(2)
+
+with col1:
+    if not filtered_df.empty:
+        fig_sentiment = plot_sentiments(
+            filtered_df,
+            sentiment_col='sentiment',
+            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
+        )
+        st.plotly_chart(fig_sentiment)
+    else:
+        st.warning("No sentiment data available for the selected filters.")
+
+with col2:
+    if not filtered_df.empty:
+        fig_request_count = plot_request_count_by_cluster(
+            filtered_df,
+            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
+        )
+        st.plotly_chart(fig_request_count)
+    else:
+        st.warning("No request count data available for the selected filters.")
