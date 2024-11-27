@@ -12,7 +12,7 @@ st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'           # Root
-s_db_table_preprocessed_json = 'Data/HRC_100_topicEmb.json'                         # Input data
+s_db_table_preprocessed_json = 'Data/db_final.json'                                 # Input data
 
 # Load precomputed data
 @st.cache_data(show_spinner=False)
@@ -25,16 +25,28 @@ def load_data(json_path):
     # region Handle empty cells and non String values for the filters
 
     # Handle 'prestige_rank' column: replace empty strings with 0 and convert to integers
-    df['prestige_rank'] = pd.to_numeric(df['prestige_rank'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    try:
+        df['prestige_rank'] = pd.to_numeric(df['prestige_rank'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    except:
+        pass
 
     # Handle 'ever_been_subscriber': replace empty strings with 0 and convert to integers
-    df['ever_been_subscriber'] = pd.to_numeric(df['ever_been_subscriber'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    try:
+        df['ever_been_subscriber'] = pd.to_numeric(df['ever_been_subscriber'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    except:
+        pass
 
     # Handle 'is_current_subscriber': replace empty strings with 0 and convert to integers
-    df['is_current_subscriber'] = pd.to_numeric(df['is_current_subscriber'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    try:
+        df['is_current_subscriber'] = pd.to_numeric(df['is_current_subscriber'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    except:
+        pass
 
     # Handle 'spending': replace empty strings with 0 and convert to integers
-    df['spending'] = pd.to_numeric(df['spending'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    try:
+        df['spending'] = pd.to_numeric(df['spending'].replace("", 0), errors='coerce').fillna(0).astype(int)
+    except:
+        pass
     # endregion
     return df
 
@@ -126,13 +138,16 @@ else:
 
 
 # Spenders Checkbox
-filter_spenders = st.sidebar.checkbox("Only Show Spenders", value=False)
+if 'spending' in df_total.columns:
+    filter_spenders = st.sidebar.checkbox("Only Show Spenders", value=False)
 
 # Current_Subscriber Checkbox
-filter_current_subscriber = st.sidebar.checkbox("Only Show Current Subscribers", value=False)
+if 'is_current_subscriber' in df_total.columns:
+    filter_current_subscriber = st.sidebar.checkbox("Only Show Current Subscribers", value=False)
 
 # Prevoius_Subscriber Checkbox
-filter_previous_subscriber = st.sidebar.checkbox("Only Show Previous Subscribers", value=False)
+if 'ever_been_subscriber' in df_total.columns:
+    filter_previous_subscriber = st.sidebar.checkbox("Only Show Previous Subscribers", value=False)
 
 
 # region Apply filters to the DataFrame
