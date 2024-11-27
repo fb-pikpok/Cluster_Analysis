@@ -254,8 +254,6 @@ else:
 
 
 # region Sentiment bar and requests chart
-
-# Sentiment and Request Count Plots
 st.subheader("Cluster Sentiment and Request Distribution")
 col1, col2 = st.columns(2)
 
@@ -279,3 +277,6 @@ with col2:
         st.plotly_chart(fig_request_count)
     else:
         st.warning("No request count data available for the selected filters.")
+
+# endregion
+
