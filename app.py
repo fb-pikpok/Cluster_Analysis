@@ -13,7 +13,7 @@ st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'           # Root
-s_db_table_preprocessed_json = 'Data/HRC_100_topicEmb.json'                                 # Input data
+s_db_table_preprocessed_json = 'Data/db_final.json'                                 # Input data
 
 # Load precomputed data
 @st.cache_data(show_spinner=False)
