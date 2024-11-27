@@ -1,69 +1,11 @@
 import plotly.express as px
 import plotly.graph_objects as go
-import json
+from plotly.colors import qualitative
 
-
-def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None):
-    """
-    Visualize embeddings in 2D or 3D based on specified columns for x, y, and optional z.
-
-    Parameters:
-    - df: DataFrame containing the data to visualize.
-    - x_col: Column name for the x-axis.
-    - y_col: Column name for the y-axis.
-    - z_col: Optional column name for the z-axis (for 3D visualization).
-    - review_text_column: Column name for the review text to display on hover.
-    - colour_by_column: Column name for the values to color by.
-
-    Returns:
-    - fig: A Plotly figure object.
-    """
-    if z_col:
-        # 3D visualization with marker outline
-        fig = px.scatter_3d(
-            df,
-            x=x_col,
-            y=y_col,
-            z=z_col,
-            color=colour_by_column,
-            hover_data={review_text_column: True} if review_text_column else {}
-        )
-        fig.update_traces(
-            marker=dict(size=6, line=dict(width=2, color="DarkSlateGrey"))
-        )
-    else:
-        # 2D visualization without marker outline
-        fig = px.scatter(
-            df,
-            x=x_col,
-            y=y_col,
-            color=colour_by_column,
-            hover_data={review_text_column: True} if review_text_column else {}
-        )
-        fig.update_traces(
-            marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey"))
-        )
-
-    # General layout adjustments
-    fig.update_layout(
-        legend_title_text=None,
-        height=600,  # Set height for visualization
-        width=900,   # Set width for visualization
-        title=f"Visualization of {x_col}, {y_col}" + (f", {z_col}" if z_col else ""),
-        xaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True),
-        yaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True)
-    )
-
-    # Hide noise cluster if exists
-    for trace in fig.data:
-        if trace.name == "-1":
-            trace.visible = "legendonly"
-
-    return fig
 
 
 # Function to create diverging sentiment plot by cluster
-def plot_diverging_sentiments(df, sentiment_col, cluster_name_col):
+def plot_sentiments(df, sentiment_col, cluster_name_col):
     # Filter for positive and negative sentiments only
     sentiment_data = df[df[sentiment_col].isin(['Positive', 'Negative'])]
 
@@ -173,5 +115,38 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
     fig.update_traces(marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey")))
 
     return fig
+
+
+
+
+def generate_color_map(dataframe, clustering_column, clustering_name_column, display_mode, palette=None):
+    """
+    Generates a color map for clusters in the dataframe.
+
+    Args:
+        dataframe (pd.DataFrame): The input dataframe containing cluster information.
+        clustering_column (str): The column name for cluster IDs.
+        clustering_name_column (str): The column name for cluster names.
+        display_mode (str): "ID" for cluster IDs, "Name" for cluster names.
+        palette (list): Optional custom color palette. Defaults to Plotly's qualitative Set2.
+
+    Returns:
+        dict: A dictionary mapping unique clusters to colors.
+    """
+    if palette is None:
+        palette = qualitative.Set2  # Default Plotly color palette
+
+    max_colors = len(palette)
+
+    # Determine unique clusters based on the display mode
+    if display_mode == "Name":
+        unique_clusters = sorted(dataframe[clustering_name_column].dropna().unique())
+    else:
+        unique_clusters = sorted(dataframe[clustering_column].dropna().unique())
+
+    # Create the color map dictionary
+    color_map = {cluster: palette[i % max_colors] for i, cluster in enumerate(unique_clusters)}
+
+    return color_map
 
 

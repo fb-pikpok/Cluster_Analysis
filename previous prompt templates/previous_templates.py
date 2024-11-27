@@ -135,3 +135,94 @@ TOPICS: {topics}
 CLUSTER NAME: '''
 )
 # endregion
+
+
+# region HRC general
+
+prompt_template_topic = PromptTemplate.from_template(
+'''Please list the most important topics and their respective original context in the review of a game in a JSON format with "Topic", "Category", and "Context" arguments. No more than 10 topics.
+Topics should focus on specific game features or aspects. A feature in the game should be a noun rather than a verb or an adjective.
+Each topic should be categorized as a "fact" or a "request".
+Respond in JSON format.
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"The customization options for characters are so limited, and it's frustrating not to have more outfit choices. Also, why can't I rename my horse after I buy it? However, I do enjoy the free roam mode—riding through open fields feels relaxing and immersive."
+
+TOPICS:
+
+{{"Topics":
+    [
+        {{
+            "Topic": "Character Customization",
+            "Category": "request",
+            "Context": "The customization options for characters are so limited, and it's frustrating not to have more outfit choices."
+        }},
+        {{
+            "Topic": "Horse Renaming",
+            "Category": "request",
+            "Context": "It's frustrating not to be able to rename my horse after I buy it."
+        }},
+        {{
+            "Topic": "Free Roam",
+            "Category": "fact",
+            "Context": "Riding through open fields feels relaxing and immersive."
+        }}
+    ]
+}}
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"Too much useless nonsense."
+
+TOPICS:
+
+{{"Topics":
+    [
+        {{"Topic": "Game Content",
+          "Category": "request",
+          "Context": "Too much useless nonsense."
+        }}
+    ]
+}}
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"This game has great mechanics, but the breeding system feels random and unfair. I've bred so many horses, yet the coats and stats don't seem to follow any logical pattern. On the other hand, I appreciate how detailed the horse animations are—it makes the game come alive."
+
+TOPICS:
+
+{{"Topics":
+    [
+        {{
+            "Topic": "Game Mechanics",
+            "Category": "fact",
+            "Context": "This game has great mechanics"
+        }},
+        {{
+            "Topic": "Breeding System",
+            "Category": "request",
+            "Context": "The breeding system feels random and unfair. Coats and stats don't seem to follow any logical pattern."
+        }},
+        {{
+            "Topic": "Horse Animations",
+            "Category": "fact",
+            "Context": "The horse animations are detailed and make the game come alive."
+        }}
+    ]
+}}
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"{review}"
+
+TOPICS:
+
+'''
+)
+
+# endregion
