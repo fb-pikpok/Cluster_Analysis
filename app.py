@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from st_source.visuals import *
+from st_source.filter_functions import *
 import numpy as np
 import json
 
@@ -132,17 +133,6 @@ if uploaded_file is not None:
         prestige_rank_min = None
         prestige_rank_max = None
 
-    # Spenders Checkbox
-    if 'spending' in df_total.columns:
-        filter_spenders = st.sidebar.checkbox("Only Show Spenders", value=False)
-
-    # Current_Subscriber Checkbox
-    if 'is_current_subscriber' in df_total.columns:
-        filter_current_subscriber = st.sidebar.checkbox("Only Show Current Subscribers", value=False)
-
-    # Prevoius_Subscriber Checkbox
-    if 'ever_been_subscriber' in df_total.columns:
-        filter_previous_subscriber = st.sidebar.checkbox("Only Show Previous Subscribers", value=False)
 
     # region Apply filters to the DataFrame
 
@@ -165,17 +155,8 @@ if uploaded_file is not None:
         else:
             filtered_df = filtered_df[filtered_df[clustering_name_column] != "Unknown"]
 
-    # Filter by Spenders
-    if filter_spenders:
-        filtered_df = filtered_df[df_total['spending'] > 0]
-
-    # Filter by Current Subscribers
-    if filter_current_subscriber:
-        filtered_df = filtered_df[df_total['is_current_subscriber'] == 1]
-
-    # Filter by Previous Subscribers
-    if filter_previous_subscriber:
-        filtered_df = filtered_df[df_total['ever_been_subscriber'] == 1]
+    # Apply optional filters dynamically
+    filtered_df = apply_optional_filters(filtered_df)
 
     # Select individual clusters
     if selected_cluster_value != "All Clusters":
