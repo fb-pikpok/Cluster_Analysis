@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import os
 from st_source.visuals import *
 from st_source.filter_functions import *
 from st_source.keywordSearch import initialize_miniLM, index_embedding, get_top_keyword_result
@@ -12,8 +13,9 @@ import json
 st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
-s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis/'           # Root
-s_db_table_preprocessed_json = 'Data/db_final.json'                                 # Input data
+s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis\Data'           # Root
+s_project = r'HRC'                                                                      # Project
+s_db_table_preprocessed_json = os.path.join(s_root, s_project, 'db_final.json')         # Input data
 
 # Load precomputed data
 @st.cache_data(show_spinner=False)
@@ -51,7 +53,7 @@ def load_data(json_path):
     # endregion
     return df
 
-df_total = load_data(s_root + s_db_table_preprocessed_json)
+df_total = load_data(s_db_table_preprocessed_json)
 
 
 # Sidebar filters

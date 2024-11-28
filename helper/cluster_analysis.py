@@ -66,7 +66,6 @@ def apply_hdbscan(
     df,
     mat,
     dimensionality_methods,
-    output_path,
     hdbscan_params=None,
     include_2d=True,
     include_3d=True
@@ -79,7 +78,7 @@ def apply_hdbscan(
 
     results = []  # List to hold HDBSCAN results
 
-    # Perform clustering in the high-dimensional space
+    # Perform Cluster Analysis
     logger.info(f"Applying HDBSCAN in the original high-dimensional space with params: {hdbscan_params}")
     hdbscan_clusterer = hdbscan.HDBSCAN(**hdbscan_params)
     hdbscan_labels = hdbscan_clusterer.fit_predict(mat)
@@ -87,6 +86,7 @@ def apply_hdbscan(
     # Add cluster labels to the DataFrame
     df['hdbscan_highdim'] = hdbscan_labels
 
+    # Dimensionality Reduction
     for method in dimensionality_methods:
         for n_dims in [2, 3]:
             if (n_dims == 2 and not include_2d) or (n_dims == 3 and not include_3d):
@@ -98,7 +98,7 @@ def apply_hdbscan(
             logger.info(f"Applying {method} for {dim_suffix} visualization.")
             reduced_coords = dimensionality_reduction(mat, method, n_components=n_dims, seed=42)
 
-            # Collect visualization results
+            # Collect Coordinates
             hdbscan_data = pd.DataFrame({
                 f'hdbscan_{method}_{dim_suffix}_x': reduced_coords[:, 0],
                 f'hdbscan_{method}_{dim_suffix}_y': reduced_coords[:, 1],
@@ -107,7 +107,7 @@ def apply_hdbscan(
             })
             results.append(hdbscan_data)
 
-    # Combine HDBSCAN results and return
+    # Combine HDBSCAN results in a dataframe
     df_new_columns = pd.concat(results, axis=1)
     df = pd.concat([df, df_new_columns], axis=1)
     logger.info("HDBSCAN clustering and dimensionality reduction completed.")
@@ -116,48 +116,53 @@ def apply_hdbscan(
 
 
 def apply_kmeans(
-    df,
-    mat,
-    dimensionality_methods,
-    kmeans_clusters,
-    output_path,
-    kmeans_seed=42,
-    include_2d=True,
-    include_3d=True
+        df,
+        mat,
+        dimensionality_methods,
+        kmeans_clusters,
+        kmeans_seed=42,
+        include_2d=True,
+        include_3d=True
 ):
     """
-    Applies KMeans clustering and dimensionality reduction.
+    Applies KMeans clustering first, followed by dimensionality reduction.
     """
     results = []  # List to hold KMeans results
 
-    for method in dimensionality_methods:
-        for n_dims in [2, 3]:
-            if (n_dims == 2 and not include_2d) or (n_dims == 3 and not include_3d):
-                continue
+    for n_clusters in kmeans_clusters:
+        logger.info(f"Applying KMeans with {n_clusters} clusters in high-dimensional space.")
 
-            dim_suffix = '2D' if n_dims == 2 else '3D'
+        # Perform clustering in high-dimensional space
+        kmeans_model = KMeans(n_clusters=n_clusters, random_state=kmeans_seed)
+        kmeans_labels = kmeans_model.fit_predict(mat)
 
-            # Dimensionality Reduction
-            reduced_coords = dimensionality_reduction(mat, method, n_components=n_dims, seed=kmeans_seed)
+        # Add high-dimensional cluster labels to the DataFrame
+        df[f'kmeans_{n_clusters}_highdim'] = kmeans_labels
 
-            for n_clusters in kmeans_clusters:
-                logger.info(f"Applying KMeans with {n_clusters} clusters on {method} {dim_suffix}.")
-                kmeans_model = KMeans(n_clusters=n_clusters, random_state=kmeans_seed)
-                kmeans_labels = kmeans_model.fit_predict(reduced_coords)
+        for method in dimensionality_methods:
+            for n_dims in [2, 3]:
+                if (n_dims == 2 and not include_2d) or (n_dims == 3 and not include_3d):
+                    continue
 
-                # Collect KMeans results
+                dim_suffix = '2D' if n_dims == 2 else '3D'
+
+                # Dimensionality Reduction
+                logger.info(f"Applying {method} in {dim_suffix}.")
+                reduced_coords = dimensionality_reduction(mat, method, n_components=n_dims, seed=kmeans_seed)
+
+                # Collect results for visualization
                 kmeans_data = pd.DataFrame({
                     f'kmeans_{n_clusters}_{method}_{dim_suffix}_x': reduced_coords[:, 0],
                     f'kmeans_{n_clusters}_{method}_{dim_suffix}_y': reduced_coords[:, 1],
                     f'kmeans_{n_clusters}_{method}_{dim_suffix}_z': reduced_coords[:, 2] if n_dims == 3 else None,
-                    f'kmeans_{n_clusters}_{method}_{dim_suffix}': kmeans_labels
+                    f'kmeans_{n_clusters}_{method}_{dim_suffix}': kmeans_labels  # Reuse the same cluster labels
                 })
                 results.append(kmeans_data)
 
     # Combine KMeans results and return
     df_new_columns = pd.concat(results, axis=1)
     df = pd.concat([df, df_new_columns], axis=1)
-    logger.info("KMeans clustering completed.")
+    logger.info("KMeans clustering and dimensionality reduction completed.")
 
     return df
 

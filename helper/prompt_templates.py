@@ -34,92 +34,108 @@ TRANSLATION:
 '''
 )
 
+
 prompt_template_topic = PromptTemplate.from_template(
 '''
-Please analyze the review and extract the most important topics relevant to frustrations in the game in a JSON format with "Topic", "Category", and "Context" arguments. Avoid repeating the central feature "Show Jumping" in every topic unless it is strictly necessary. 
-Focus on specific aspects or features that players find frustrating. No more than 10 topics.
-
-- "Topic" should focus on a specific game feature or aspect.
-- "Category" should be either "fact" or "request".
-- "Context" should be a direct excerpt from the review that explains the topic.
-
+Please list the most important topics and their respective original context in the review of a game in a JSON format with "Topic", "Category", and "Context" arguments.
+The Topic should focus on a specific game feature or aspect. The Category should be either "fact" or "request". The Context should be a direct excerpt from the review that explains the topic.
+Players have been ask "Is there anything you currently find frustrating in the Show Jumping?"
+Avoid repeating the central feature "Show Jumping" in every topic unless it is strictly necessary.
+No more than 10 topics.
 Respond in JSON format.
 
+
 [h0]==================================================================[\h0]
-REVIEW: 
+REVIEW:
+
 
 "The camera during show jumping feels awkward—it’s hard to follow the horse smoothly. Also, the hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
 
+
 TOPICS:
 
+
 {{
-    "Topics": [
-        {{
-            "Topic": "Camera Movement",
-            "Category": "request",
-            "Context": "The camera during show jumping feels awkward—it’s hard to follow the horse smoothly."
-        }},
-        {{
-            "Topic": "Fence Hitboxes",
-            "Category": "request",
-            "Context": "The hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
-        }}
-    ]
+   "Topics": [
+       {{
+           "Topic": "Camera Movement",
+           "Category": "request",
+           "Context": "The camera during show jumping feels awkward—it’s hard to follow the horse smoothly."
+       }},
+       {{
+           "Topic": "Fence Hitboxes",
+           "Category": "request",
+           "Context": "The hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
+       }}
+   ]
 }}
 
+
 [h0]==================================================================[\h0]
-REVIEW: 
+REVIEW:
+
 
 "There’s too much grind to unlock better horses. It feels like you have to repeat the same thing endlessly. Also, it’s annoying how the controls for lining up the horse before a jump are so imprecise."
 
+
 TOPICS:
 
+
 {{
-    "Topics": [
-        {{
-            "Topic": "Progression Grind",
-            "Category": "request",
-            "Context": "There’s too much grind to unlock better horses. It feels like you have to repeat the same thing endlessly."
-        }},
-        {{
-            "Topic": "Alignment Controls",
-            "Category": "request",
-            "Context": "It’s annoying how the controls for lining up the horse before a jump are so imprecise."
-        }}
-    ]
+   "Topics": [
+       {{
+           "Topic": "Progression Grind",
+           "Category": "request",
+           "Context": "There’s too much grind to unlock better horses. It feels like you have to repeat the same thing endlessly."
+       }},
+       {{
+           "Topic": "Alignment Controls",
+           "Category": "request",
+           "Context": "It’s annoying how the controls for lining up the horse before a jump are so imprecise."
+       }}
+   ]
 }}
 
+
 [h0]==================================================================[\h0]
-REVIEW: 
+REVIEW:
+
 
 "The physics during collisions feel off—it’s like the horse freezes instead of reacting naturally. But overall, I like how realistic the jump animations are."
 
+
 TOPICS:
 
+
 {{
-    "Topics": [
-        {{
-            "Topic": "Collision Physics",
-            "Category": "request",
-            "Context": "The physics during collisions feel off—it’s like the horse freezes instead of reacting naturally."
-        }},
-        {{
-            "Topic": "Animations",
-            "Category": "fact",
-            "Context": "I like how realistic the jump animations are."
-        }}
-    ]
+   "Topics": [
+       {{
+           "Topic": "Collision Physics",
+           "Category": "request",
+           "Context": "The physics during collisions feel off—it’s like the horse freezes instead of reacting naturally."
+       }},
+       {{
+           "Topic": "Animations",
+           "Category": "fact",
+           "Context": "I like how realistic the jump animations are."
+       }}
+   ]
 }}
 
+
 [h0]==================================================================[\h0]
-REVIEW: 
+REVIEW:
+
 
 "{review}"
 
+
 TOPICS:
+
 
 '''
 )
+
 
 
 prompt_template_sentiment = PromptTemplate.from_template(

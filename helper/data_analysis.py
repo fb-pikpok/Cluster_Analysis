@@ -330,3 +330,46 @@ def analyse_data(translated_data, id_column, output_path, prompt_template_topic,
         save_progress(processed_data, output_path)
         logger.info("Processing completed. Final progress saved.")
 
+
+## Example Usage
+if __name__ == "__main__":
+    import os
+    from helper.utils import *
+    from helper.prompt_templates import *
+    import openai
+    from dotenv import load_dotenv
+
+
+    root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis\Data\DEMO'
+    input_file = os.path.join(root_dir, "db_translated.json")
+    output_path = os.path.join(root_dir, "db_analysed.json")
+
+    # Load API settings
+    load_dotenv()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai.api_key = openai_api_key
+    client = openai.Client()
+    chat_model_name = 'gpt-4o-mini'
+
+
+    configure_api(client, chat_model_name)
+
+    id_column = "Unnamed: 0"  # Column name for entry IDs
+    columns_of_interest = ["player_response"]  # Which cols should be analyzed?
+    batch_size = 10  # Fail-safe batching. The higher the number, the less often the progress is saved.
+
+    prepared_data = read_json(input_file)
+
+    # Run analysis
+    analyse_data(
+        translated_data=prepared_data,
+        id_column=id_column,
+        output_path=output_path,
+        prompt_template_topic=prompt_template_topic,
+        prompt_template_sentiment=prompt_template_sentiment,
+        api_settings=api_settings,
+        columns_of_interest=columns_of_interest,
+        batch_size=batch_size
+    )
+
+
