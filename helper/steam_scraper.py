@@ -1,5 +1,7 @@
 import requests
 import logging
+import re
+import json
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -41,6 +43,52 @@ def get_n_reviews(appid, params, n=100):
 
     return reviews
 
+
+def is_informative_review(review):
+    """
+    Determine if a review is informative based on word count and character content.
+
+    Args:
+        review (str): The review text.
+
+    Returns:
+        bool: True if the review is informative, False otherwise.
+    """
+    # Remove leading and trailing whitespace
+    review = review.strip()
+
+    # Split the review into words using Unicode word boundaries
+    words = re.findall(r'\b\w+\b', review, re.UNICODE)
+
+    # Check if the review has fewer than 3 words
+    if len(words) < 3:
+        return False
+
+    # Count the number of alphabetic characters in the review
+    alphabetic_count = sum(1 for char in review if char.isalpha())
+
+    # Calculate the proportion of alphabetic characters
+    proportion_alphabetic = alphabetic_count / len(review)
+
+    # Consider the review informative if more than 50% of characters are alphabetic
+    return proportion_alphabetic > 0.5
+
+def filter_reviews(data, review_key):
+    """
+    Filter out uninformative reviews from the data and count the number of removed entries.
+
+    Args:
+        data (list): List of dictionaries containing reviews.
+        review_key (str): The key in each dictionary where the review text is stored.
+
+    Returns:
+        tuple: A tuple containing the filtered list with only informative reviews and the count of removed entries.
+    """
+    original_count = len(data)
+    filtered_data = [entry for entry in data if is_informative_review(entry.get(review_key, ''))]
+    removed_count = original_count - len(filtered_data)
+    logger.info(f"Total entries removed: {removed_count}")
+    return filtered_data, removed_count
 
 if __name__ == '__main__':
     from helper.utils import *
