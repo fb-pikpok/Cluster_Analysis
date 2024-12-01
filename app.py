@@ -120,6 +120,7 @@ hide_noise = st.sidebar.checkbox("Hide Noise", value=False)
 view_options = ["2D", "3D"]
 selected_view = st.sidebar.radio("Select View", view_options)
 
+
 # region Cluster Selection
 if selected_clustering == "kmeans":
     clustering_column = f"{selected_clustering}_{selected_kmeans_size}_{selected_dimensionality}_{selected_view}"
@@ -221,33 +222,6 @@ else:
 # endregion
 
 
-# # region Sentiment bar and requests chart
-# st.subheader("Cluster Sentiment and Request Distribution")
-# col1, col2 = st.columns(2)
-#
-# with col1:
-#     if not filtered_df.empty:
-#         fig_sentiment = plot_sentiments(
-#             filtered_df,
-#             sentiment_col='sentiment',
-#             cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
-#         )
-#         st.plotly_chart(fig_sentiment)
-#     else:
-#         st.warning("No sentiment data available for the selected filters.")
-#
-# with col2:
-#     if not filtered_df.empty:
-#         fig_request_count = plot_request_count_by_cluster(
-#             filtered_df,
-#             cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
-#         )
-#         st.plotly_chart(fig_request_count)
-#     else:
-#         st.warning("No request count data available for the selected filters.")
-#
-# # endregion
-
 # region Additional Charts
 # Bar Chart (horizontal) for Sentiment per Cluster
 st.subheader("Sentiment per Cluster")
@@ -262,27 +236,40 @@ if not filtered_df.empty:
 else:
     st.warning("No sentiment data available for the selected filters.")
 
-# Bar Chart for Requests per Cluster
+# Add a selection button for data type
 st.subheader("Requests per Cluster")
+data_type = st.radio(
+    "Select data to display:",
+    options=["requests", "facts", "both"],
+    index=0,
+    horizontal=True
+)
+
 if not filtered_df.empty:
-    fig_request_count = plot_request_count_by_cluster(
-        filtered_df,
-        cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
-    )
-    st.plotly_chart(fig_request_count)
+    if 'category' not in filtered_df.columns:
+        st.warning("The 'category' column is not available in the dataset.")
+    else:
+        fig_request_count = plot_request_count_by_cluster(
+            filtered_df,
+            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column,
+            data_type=data_type
+        )
+        st.plotly_chart(fig_request_count)
 else:
     st.warning("No request count data available for the selected filters.")
 
+
+
 # Bar chart (vertical) for Sentiment over Time
 st.subheader("Sentiment Over Time")
-if not filtered_df.empty:
+try:
     fig_sentiment_time = plot_sentiments_over_time(
         df=filtered_df,
         sentiment_col='sentiment',
         month_col='month'
     )
     st.plotly_chart(fig_sentiment_time)
-else:
+except:
     st.warning("No data available for sentiment over time.")
 
 # endregion

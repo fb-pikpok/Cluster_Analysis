@@ -46,26 +46,48 @@ def plot_sentiments(df, sentiment_col, cluster_name_col):
 
     return fig
 
-def plot_request_count_by_cluster(df, cluster_name_col):
-    request_counts = df[cluster_name_col].value_counts().reset_index()
-    request_counts.columns = [cluster_name_col, 'Request Count']
+def plot_request_count_by_cluster(df, cluster_name_col, data_type):
+    """
+    Plots a bar chart for facts, requests, or both (cluster size) per cluster.
 
+    Args:
+        df (pd.DataFrame): Filtered DataFrame.
+        cluster_name_col (str): Name of the cluster column.
+        data_type (str): Type of data to display ("requests", "facts", or "both").
+
+    Returns:
+        plotly.graph_objects.Figure: Bar chart.
+    """
+    # Filter the DataFrame based on the selected category
+    if data_type == "requests":
+        filtered_df = df[df['category'] == 'request']
+    elif data_type == "facts":
+        filtered_df = df[df['category'] == 'fact']
+    elif data_type == "both":
+        filtered_df = df  # Include all categories
+
+    # Count occurrences per cluster
+    data = filtered_df[cluster_name_col].value_counts().reset_index()
+    data.columns = [cluster_name_col, 'Count']
+
+    # Create the bar chart
     fig = px.bar(
-        request_counts,
+        data,
         x=cluster_name_col,
-        y='Request Count',
-        title="Number of Requests per Cluster",
-        labels={cluster_name_col: "Cluster Name", 'Request Count': "Count"},
-        text='Request Count'
+        y='Count',
+        title=f"Number of {data_type.capitalize()} per Cluster",
+        labels={cluster_name_col: "Cluster Name", 'Count': "Count"},
+        text='Count'
     )
 
     fig.update_layout(
         xaxis_title="Cluster Name",
-        yaxis_title="Request Count",
+        yaxis_title="Count",
         showlegend=False
     )
 
     return fig
+
 
 def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None, color_map=None):
     """
