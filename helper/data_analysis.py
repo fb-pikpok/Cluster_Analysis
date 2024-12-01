@@ -42,7 +42,11 @@ def detect_player_language(data, id_column, columns_of_interest):
         entry_id = entry.get(id_column, "unknown")
 
         # Combine text from specified fields
-        combined_text = " ".join(entry.get(field, "").strip() for field in columns_of_interest if entry.get(field))
+        combined_text = " ".join(
+            str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
+            for field in columns_of_interest
+            if entry.get(field) is not None  # Ensure the field value is not None
+        )
 
         # If the combined text is empty, no language detection is performed
         if combined_text.strip():
@@ -76,7 +80,11 @@ def translate_data(data, id_column, prompt_template_translation, api_settings, c
         entry_id = entry.get(id_column, "unknown")
         try:
             # Combine review fields into one text
-            combined_text = " ".join(entry.get(field, "").strip() for field in columns_of_interest if entry.get(field))
+            combined_text = " ".join(
+                str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
+                for field in columns_of_interest
+                if entry.get(field)
+            )
             detected_language = entry.get("player_language", "none")
             # Skip translation for English or empty responses
             if detected_language in ["english", "none"] or not combined_text.strip():
@@ -96,7 +104,7 @@ def translate_data(data, id_column, prompt_template_translation, api_settings, c
                     {"role": "system", "content": "You are a helpful assistant for translation."},
                     {"role": "user", "content": prompt_translation},
                 ],
-                max_tokens=1024
+                max_tokens=4096
             )
 
             # Extract translation from the response
@@ -130,7 +138,11 @@ def extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns
     Returns:
         dict: Extracted topics in JSON format.
     """
-    combined_review = " ".join(entry.get(field, "").strip() for field in columns_of_interest)
+    combined_review = " ".join(
+        str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
+        for field in columns_of_interest
+        if entry.get(field) is not None  # Ensure the field value is not None
+    )
     prompt_topic = prompt_template_topic.format(review=combined_review)
     logger.info(f"Extracting topics for entry ID {entry_id}")
 
@@ -141,14 +153,37 @@ def extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns
                 {"role": "system", "content": "You are an expert in extracting topics from user reviews."},
                 {"role": "user", "content": prompt_topic},
             ],
-            max_tokens=1024,
+            max_tokens=4096,
             response_format={"type": "json_object"}
         )
         track_tokens(response)
-        return json.loads(response.choices[0].message.content)
+        response_json = json.loads(response.choices[0].message.content)
+
+        # Normalize the "topics" key
+        normalized_response = normalize_topics_key(response_json)
+        return normalized_response
+
+        return
     except Exception as e:
         logger.error(f"Error extracting topics for entry ID {entry_id}: {e}")
         return {"error": str(e)}
+
+def normalize_topics_key(response_json):
+    """
+    Normalize the key for topics in the outermost JSON object to "topics" (case-insensitive).
+    """
+    if not isinstance(response_json, dict):
+        logger.error("The JSON object is not a dictionary.")
+
+    # Find the key regardless of case
+    for key in response_json.keys():
+        if key.lower() == "topics":
+            # Standardize the key to "topics"
+            response_json["topics"] = response_json.pop(key)
+            return response_json
+
+    # If no "topics" key is found, raise an error
+    logger.error("The JSON does not contain a valid 'topics' key.")
 
 
 def analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_settings):
@@ -165,7 +200,7 @@ def analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_s
         api_settings (dict): API configuration from utils.py.
     """
     entry["topics"] = []
-    for topic in topics.get("Topics", []):
+    for topic in topics.get("topics", []):
         logger.info(f"Analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry_id})")
         try:
             prompt_sentiment = prompt_template_sentiment.format(
@@ -317,4 +352,47 @@ def analyse_data(translated_data, id_column, output_path, prompt_template_topic,
     finally:
         save_progress(processed_data, output_path)
         logger.info("Processing completed. Final progress saved.")
+
+
+## Example Usage
+if __name__ == "__main__":
+    import os
+    from helper.utils import *
+    from helper.prompt_templates import *
+    import openai
+    from dotenv import load_dotenv
+
+
+    root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis\Data\DEMO'
+    input_file = os.path.join(root_dir, "db_translated.json")
+    output_path = os.path.join(root_dir, "db_analysed.json")
+
+    # Load API settings
+    load_dotenv()
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai.api_key = openai_api_key
+    client = openai.Client()
+    chat_model_name = 'gpt-4o-mini'
+
+
+    configure_api(client, chat_model_name)
+
+    id_column = "recommendationid"  # Column name for entry IDs
+    columns_of_interest = ["player_response"]  # Which cols should be analyzed?
+    batch_size = 10  # Fail-safe batching. The higher the number, the less often the progress is saved.
+
+    prepared_data = read_json(input_file)
+
+    # Run analysis
+    analyse_data(
+        translated_data=prepared_data,
+        id_column=id_column,
+        output_path=output_path,
+        prompt_template_topic=prompt_template_topic,
+        prompt_template_sentiment=prompt_template_sentiment,
+        api_settings=api_settings,
+        columns_of_interest=columns_of_interest,
+        batch_size=batch_size
+    )
+
 

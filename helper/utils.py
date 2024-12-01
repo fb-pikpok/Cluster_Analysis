@@ -82,28 +82,6 @@ def save_df_as_json(data, file_path):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-# def json_to_table(json_data):
-#     """
-#     Converts the embedded JSON data into a flat table format.
-#     Args:
-#         json_data (list): List of review entries containing topics and embeddings.
-#     Returns:
-#         pd.DataFrame: A flattened table of all topics with additional fields.
-#     """
-#     logger.info("Converting JSON data to a table format.")
-#     df_total = pd.DataFrame()
-#
-#     for review_entry in json_data:
-#         if "topics" in review_entry and isinstance(review_entry["topics"], list):
-#             df_gp = pd.DataFrame(review_entry["topics"])
-#             for key, value in review_entry.items():
-#                 if key != "topics":
-#                     df_gp[key] = value
-#             df_total = pd.concat([df_total, df_gp], ignore_index=True)
-#
-#     logger.info("Conversion to table format completed.")
-#     return df_total
-
 def json_to_table(json_data):
     """
     Converts the embedded JSON data into a flat table format.
@@ -188,7 +166,9 @@ def get_random_sample(data, sample_size, seed=None):
     if sample_size > len(data):
         raise ValueError(f"Sample size ({sample_size}) cannot exceed the dataset size ({len(data)}).")
 
-    return random.sample(data, sample_size)
+    random_sample = random.sample(data, sample_size)
+    logger.info(f"Generating a random sample of size {sample_size} with seed {seed}.")
+    return random_sample
 
 def filter_and_enrich_data(data, columns_of_interest):
     """

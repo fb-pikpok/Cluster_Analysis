@@ -1,8 +1,5 @@
-import json
 import gc
 import os
-import torch
-import pandas as pd
 from llama_index.embeddings.langchain import LangchainEmbedding
 from langchain.embeddings import HuggingFaceEmbeddings
 import logging
@@ -57,8 +54,6 @@ def process_batch(batch, embed_model, b_override, embed_key="topic"):
                     if embed_key in d_topic and ("embedding" not in d_topic or b_override):
                         d_topic["embedding"] = embed_text(d_topic[embed_key], embed_model)
             processed_batch.append(review_entry)  # Append the processed entry
-            # Release memory
-            torch.cuda.empty_cache()
             gc.collect()
     return processed_batch
 
