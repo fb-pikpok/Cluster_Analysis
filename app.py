@@ -77,7 +77,7 @@ def load_data(json_path):
 df_total = load_data(s_db_table_preprocessed_json)
 
 
-# Sidebar filters
+# region Sidebar filters
 st.sidebar.header("Filter Options")
 # Display mode
 display_mode = st.sidebar.selectbox("Display Mode", ["ID", "Name"])
@@ -119,6 +119,8 @@ hide_noise = st.sidebar.checkbox("Hide Noise", value=False)
 # View selection (2D or 3D)
 view_options = ["2D", "3D"]
 selected_view = st.sidebar.radio("Select View", view_options)
+
+#endregion
 
 
 # region Cluster Selection
