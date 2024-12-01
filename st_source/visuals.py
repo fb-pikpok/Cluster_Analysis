@@ -83,6 +83,13 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
     Returns:
     - fig: A Plotly figure object.
     """
+    # Add hover data dynamically
+    hover_data = {}
+    if review_text_column:
+        hover_data[review_text_column] = True  # Include the review text
+    if 'topic' in df.columns:
+        hover_data['topic'] = True  # Include the topic, if it exists
+
     if z_col:
         fig = px.scatter_3d(
             df,
@@ -90,7 +97,7 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
             y=y_col,
             z=z_col,
             color=colour_by_column,
-            hover_data={review_text_column: True} if review_text_column else {},
+            hover_data=hover_data,
             color_discrete_map=color_map  # Use the color map
         )
     else:
@@ -99,7 +106,7 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
             x=x_col,
             y=y_col,
             color=colour_by_column,
-            hover_data={review_text_column: True} if review_text_column else {},
+            hover_data=hover_data,
             color_discrete_map=color_map  # Use the color map
         )
 
@@ -116,6 +123,7 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
     fig.update_traces(marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey")))
 
     return fig
+
 
 
 

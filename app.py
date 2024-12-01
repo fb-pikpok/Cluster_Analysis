@@ -190,6 +190,7 @@ if not filtered_df.empty:
             color_map=color_map  # Pass the color map for consistent coloring
         )
         st.plotly_chart(fig)
+
 else:
     st.warning("No data available for the selected filters (visualization).")
 # endregion
@@ -247,7 +248,8 @@ else:
 #
 # # endregion
 
-# region Sentiment bar and requests chart
+# region Additional Charts
+# Bar Chart (horizontal) for Sentiment per Cluster
 st.subheader("Sentiment per Cluster")
 
 if not filtered_df.empty:
@@ -260,6 +262,7 @@ if not filtered_df.empty:
 else:
     st.warning("No sentiment data available for the selected filters.")
 
+# Bar Chart for Requests per Cluster
 st.subheader("Requests per Cluster")
 if not filtered_df.empty:
     fig_request_count = plot_request_count_by_cluster(
@@ -270,9 +273,7 @@ if not filtered_df.empty:
 else:
     st.warning("No request count data available for the selected filters.")
 
-# endregion
-
-# Aggregate data for sentiment over time
+# Bar chart (vertical) for Sentiment over Time
 st.subheader("Sentiment Over Time")
 if not filtered_df.empty:
     fig_sentiment_time = plot_sentiments_over_time(
@@ -283,4 +284,8 @@ if not filtered_df.empty:
     st.plotly_chart(fig_sentiment_time)
 else:
     st.warning("No data available for sentiment over time.")
+
+# endregion
+
+
 
