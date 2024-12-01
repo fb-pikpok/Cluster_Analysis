@@ -1,6 +1,7 @@
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import qualitative
+import pandas as pd
 
 
 
@@ -148,5 +149,84 @@ def generate_color_map(dataframe, clustering_column, clustering_name_column, dis
     color_map = {cluster: palette[i % max_colors] for i, cluster in enumerate(unique_clusters)}
 
     return color_map
+
+
+# region Sentiment over time
+
+def get_sentiment_over_time(df):
+    """
+    Groups data by month and counts positive and negative sentiments.
+
+    Args:
+        df (pd.DataFrame): Filtered DataFrame with sentiment and timestamp columns.
+
+    Returns:
+        pd.DataFrame: Aggregated DataFrame with sentiment counts by month.
+    """
+    if 'month' not in df.columns or 'sentiment' not in df.columns:
+        return pd.DataFrame()  # Return an empty DataFrame if required columns are missing
+
+    # Group by month and sentiment, then count occurrences
+    sentiment_over_time = (
+        df.groupby(['month', 'sentiment'])
+        .size()
+        .unstack(fill_value=0)  # Create columns for each sentiment
+        .reset_index()
+    )
+
+    return sentiment_over_time
+
+
+import plotly.graph_objects as go
+
+def plot_sentiments_over_time(df, sentiment_col, month_col):
+    """
+    Creates a diverging bar chart for sentiment counts over time (by month).
+
+    Args:
+        df (pd.DataFrame): DataFrame containing sentiment and month data.
+        sentiment_col (str): The name of the sentiment column.
+        month_col (str): The name of the month column.
+
+    Returns:
+        plotly.graph_objects.Figure: Diverging bar chart for sentiment counts over time.
+    """
+    # Filter for positive and negative sentiments only
+    sentiment_data = df[df[sentiment_col].isin(['Positive', 'Negative'])]
+
+    # Calculate sentiment counts grouped by month
+    sentiment_counts = sentiment_data.groupby([month_col, sentiment_col]).size().unstack(fill_value=0)
+
+    # Separate positive and negative counts
+    sentiment_counts['Positive'] = sentiment_counts.get('Positive', 0)
+    sentiment_counts['Negative'] = -sentiment_counts.get('Negative', 0)  # Flip negative values for diverging bars
+
+    # Create a diverging bar chart
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=sentiment_counts.index.astype(str),  # Convert PeriodIndex to string for display
+        y=sentiment_counts['Positive'],
+        name='Positive',
+        marker=dict(color='green')
+    ))
+    fig.add_trace(go.Bar(
+        x=sentiment_counts.index.astype(str),  # Convert PeriodIndex to string for display
+        y=sentiment_counts['Negative'],
+        name='Negative',
+        marker=dict(color='red')
+    ))
+
+    # Update layout for the chart
+    fig.update_layout(
+        title="Sentiment Over Time",
+        xaxis_title="Month",
+        yaxis_title="Sentiment Frequency",
+        barmode='relative',  # Allow bars to diverge
+        showlegend=True,
+        xaxis=dict(showgrid=True, zeroline=True),
+        yaxis=dict(showgrid=False, zeroline=False)
+    )
+
+    return fig
 
 
