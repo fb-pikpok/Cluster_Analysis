@@ -1,6 +1,7 @@
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import qualitative
+import pandas as pd
 
 
 
@@ -45,26 +46,48 @@ def plot_sentiments(df, sentiment_col, cluster_name_col):
 
     return fig
 
-def plot_request_count_by_cluster(df, cluster_name_col):
-    request_counts = df[cluster_name_col].value_counts().reset_index()
-    request_counts.columns = [cluster_name_col, 'Request Count']
+def plot_request_count_by_cluster(df, cluster_name_col, data_type):
+    """
+    Plots a bar chart for facts, requests, or both (cluster size) per cluster.
 
+    Args:
+        df (pd.DataFrame): Filtered DataFrame.
+        cluster_name_col (str): Name of the cluster column.
+        data_type (str): Type of data to display ("requests", "facts", or "both").
+
+    Returns:
+        plotly.graph_objects.Figure: Bar chart.
+    """
+    # Filter the DataFrame based on the selected category
+    if data_type == "requests":
+        filtered_df = df[df['category'] == 'request']
+    elif data_type == "facts":
+        filtered_df = df[df['category'] == 'fact']
+    elif data_type == "both":
+        filtered_df = df  # Include all categories
+
+    # Count occurrences per cluster
+    data = filtered_df[cluster_name_col].value_counts().reset_index()
+    data.columns = [cluster_name_col, 'Count']
+
+    # Create the bar chart
     fig = px.bar(
-        request_counts,
+        data,
         x=cluster_name_col,
-        y='Request Count',
-        title="Number of Requests per Cluster",
-        labels={cluster_name_col: "Cluster Name", 'Request Count': "Count"},
-        text='Request Count'
+        y='Count',
+        title=f"Number of {data_type.capitalize()} per Cluster",
+        labels={cluster_name_col: "Cluster Name", 'Count': "Count"},
+        text='Count'
     )
 
     fig.update_layout(
         xaxis_title="Cluster Name",
-        yaxis_title="Request Count",
+        yaxis_title="Count",
         showlegend=False
     )
 
     return fig
+
 
 def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None, color_map=None):
     """
@@ -82,6 +105,13 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
     Returns:
     - fig: A Plotly figure object.
     """
+    # Add hover data dynamically
+    hover_data = {}
+    if review_text_column:
+        hover_data[review_text_column] = True  # Include the review text
+    if 'topic' in df.columns:
+        hover_data['topic'] = True  # Include the topic, if it exists
+
     if z_col:
         fig = px.scatter_3d(
             df,
@@ -89,7 +119,7 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
             y=y_col,
             z=z_col,
             color=colour_by_column,
-            hover_data={review_text_column: True} if review_text_column else {},
+            hover_data=hover_data,
             color_discrete_map=color_map  # Use the color map
         )
     else:
@@ -98,7 +128,7 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
             x=x_col,
             y=y_col,
             color=colour_by_column,
-            hover_data={review_text_column: True} if review_text_column else {},
+            hover_data=hover_data,
             color_discrete_map=color_map  # Use the color map
         )
 
@@ -115,6 +145,7 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
     fig.update_traces(marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey")))
 
     return fig
+
 
 
 
@@ -148,5 +179,84 @@ def generate_color_map(dataframe, clustering_column, clustering_name_column, dis
     color_map = {cluster: palette[i % max_colors] for i, cluster in enumerate(unique_clusters)}
 
     return color_map
+
+
+# region Sentiment over time
+
+def get_sentiment_over_time(df):
+    """
+    Groups data by month and counts positive and negative sentiments.
+
+    Args:
+        df (pd.DataFrame): Filtered DataFrame with sentiment and timestamp columns.
+
+    Returns:
+        pd.DataFrame: Aggregated DataFrame with sentiment counts by month.
+    """
+    if 'month' not in df.columns or 'sentiment' not in df.columns:
+        return pd.DataFrame()  # Return an empty DataFrame if required columns are missing
+
+    # Group by month and sentiment, then count occurrences
+    sentiment_over_time = (
+        df.groupby(['month', 'sentiment'])
+        .size()
+        .unstack(fill_value=0)  # Create columns for each sentiment
+        .reset_index()
+    )
+
+    return sentiment_over_time
+
+
+import plotly.graph_objects as go
+
+def plot_sentiments_over_time(df, sentiment_col, month_col):
+    """
+    Creates a diverging bar chart for sentiment counts over time (by month).
+
+    Args:
+        df (pd.DataFrame): DataFrame containing sentiment and month data.
+        sentiment_col (str): The name of the sentiment column.
+        month_col (str): The name of the month column.
+
+    Returns:
+        plotly.graph_objects.Figure: Diverging bar chart for sentiment counts over time.
+    """
+    # Filter for positive and negative sentiments only
+    sentiment_data = df[df[sentiment_col].isin(['Positive', 'Negative'])]
+
+    # Calculate sentiment counts grouped by month
+    sentiment_counts = sentiment_data.groupby([month_col, sentiment_col]).size().unstack(fill_value=0)
+
+    # Separate positive and negative counts
+    sentiment_counts['Positive'] = sentiment_counts.get('Positive', 0)
+    sentiment_counts['Negative'] = -sentiment_counts.get('Negative', 0)  # Flip negative values for diverging bars
+
+    # Create a diverging bar chart
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=sentiment_counts.index.astype(str),  # Convert PeriodIndex to string for display
+        y=sentiment_counts['Positive'],
+        name='Positive',
+        marker=dict(color='green')
+    ))
+    fig.add_trace(go.Bar(
+        x=sentiment_counts.index.astype(str),  # Convert PeriodIndex to string for display
+        y=sentiment_counts['Negative'],
+        name='Negative',
+        marker=dict(color='red')
+    ))
+
+    # Update layout for the chart
+    fig.update_layout(
+        title="Sentiment Over Time",
+        xaxis_title="Month",
+        yaxis_title="Sentiment Frequency",
+        barmode='relative',  # Allow bars to diverge
+        showlegend=True,
+        xaxis=dict(showgrid=True, zeroline=True),
+        yaxis=dict(showgrid=False, zeroline=False)
+    )
+
+    return fig
 
 

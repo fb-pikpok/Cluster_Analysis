@@ -13,8 +13,9 @@ import json
 st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
-s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis\Data'           # Root
-s_project = r'HRC'                                                                      # Project
+s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis\Data/'           # Root
+s_project = r'Steamapps\Infection free zone/'                                                                      # Project
+#s_project = r'HRC/'                                                                      # Project
 s_db_table_preprocessed_json = os.path.join(s_root, s_project, 'db_final.json')         # Input data
 
 # Load precomputed data
@@ -50,6 +51,26 @@ def load_data(json_path):
         df['spending'] = pd.to_numeric(df['spending'].replace("", 0), errors='coerce').fillna(0).astype(int)
     except:
         pass
+
+    # Steam review Stuff
+    try:
+        df['playtime_at_review'] = df['author'].apply(lambda x: x.get('playtime_at_review', 0))
+    except:
+        pass
+
+    # Handle 'weighted_vote_score'
+    try:
+        df['weighted_vote_score'] = pd.to_numeric(df['weighted_vote_score'], errors='coerce').fillna(0)
+    except:
+        pass
+
+    # Convert 'timestamp_created' to a datetime object and extract the month
+    try:
+        df['timestamp_created'] = pd.to_datetime(df['timestamp_created'], unit='ms')  # Convert from milliseconds
+        df['month'] = df['timestamp_created'].dt.to_period('M').astype(str)  # Convert to string for JSON serialization
+    except:
+        pass
+
     # endregion
     return df
 
@@ -99,6 +120,7 @@ hide_noise = st.sidebar.checkbox("Hide Noise", value=False)
 view_options = ["2D", "3D"]
 selected_view = st.sidebar.radio("Select View", view_options)
 
+
 # region Cluster Selection
 if selected_clustering == "kmeans":
     clustering_column = f"{selected_clustering}_{selected_kmeans_size}_{selected_dimensionality}_{selected_view}"
@@ -117,42 +139,9 @@ selected_cluster_value = st.sidebar.selectbox("Select Cluster", cluster_options)
 # endregion
 
 
-# Sentiment filter
-selected_sentiment = st.sidebar.multiselect(
-    "Select Sentiment",
-    df_total['sentiment'].unique(),
-    default=df_total['sentiment'].unique()
-)
-
-# Prestige Rank Slider
-if 'prestige_rank' in df_total.columns:
-    min_value = int(df_total['prestige_rank'].min())
-    max_value = int(df_total['prestige_rank'].max())
-    prestige_rank_range = st.sidebar.slider(
-        "Prestige Rank Slider",
-        min_value, max_value, (min_value, max_value),
-    )
-
-    # Extract the minimum and maximum from the slider's output
-    prestige_rank_min, prestige_rank_max = prestige_rank_range
-else:
-    prestige_rank_min = None
-    prestige_rank_max = None
-
-
-# region Apply filters to the DataFrame
-
-# Define filtered DataFrame
-filtered_df = df_total[
-    (df_total['sentiment'].isin(selected_sentiment))
-]
-
-# filter by Prestige Rank range
-if prestige_rank_min is not None and prestige_rank_max is not None:
-    filtered_df = filtered_df[
-        (df_total['prestige_rank'] >= prestige_rank_min) &
-        (df_total['prestige_rank'] <= prestige_rank_max)
-    ]
+# region Filters
+# Optional filters in st_source.filter_functions.py
+filtered_df = apply_optional_filters(df_total, optional_filters)
 
 # Hide noise if selected
 if hide_noise:
@@ -161,8 +150,6 @@ if hide_noise:
     else:
         filtered_df = filtered_df[filtered_df[clustering_name_column] != "Unknown"]
 
-# Apply optional filters dynamically
-filtered_df = apply_optional_filters(filtered_df)
 
 # Select individual clusters
 if selected_cluster_value != "All Clusters":
@@ -204,6 +191,7 @@ if not filtered_df.empty:
             color_map=color_map  # Pass the color map for consistent coloring
         )
         st.plotly_chart(fig)
+
 else:
     st.warning("No data available for the selected filters (visualization).")
 # endregion
@@ -234,30 +222,57 @@ else:
 # endregion
 
 
-# region Sentiment bar and requests chart
-st.subheader("Cluster Sentiment and Request Distribution")
-col1, col2 = st.columns(2)
+# region Additional Charts
+# Bar Chart (horizontal) for Sentiment per Cluster
+st.subheader("Sentiment per Cluster")
 
-with col1:
-    if not filtered_df.empty:
-        fig_sentiment = plot_sentiments(
-            filtered_df,
-            sentiment_col='sentiment',
-            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
-        )
-        st.plotly_chart(fig_sentiment)
+if not filtered_df.empty:
+    fig_sentiment = plot_sentiments(
+        filtered_df,
+        sentiment_col='sentiment',
+        cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
+    )
+    st.plotly_chart(fig_sentiment)
+else:
+    st.warning("No sentiment data available for the selected filters.")
+
+# Add a selection button for data type
+st.subheader("Requests per Cluster")
+data_type = st.radio(
+    "Select data to display:",
+    options=["requests", "facts", "both"],
+    index=0,
+    horizontal=True
+)
+
+if not filtered_df.empty:
+    if 'category' not in filtered_df.columns:
+        st.warning("The 'category' column is not available in the dataset.")
     else:
-        st.warning("No sentiment data available for the selected filters.")
-
-with col2:
-    if not filtered_df.empty:
         fig_request_count = plot_request_count_by_cluster(
             filtered_df,
-            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column
+            cluster_name_col=clustering_name_column if display_mode == "Name" else clustering_column,
+            data_type=data_type
         )
         st.plotly_chart(fig_request_count)
-    else:
-        st.warning("No request count data available for the selected filters.")
+else:
+    st.warning("No request count data available for the selected filters.")
+
+
+
+# Bar chart (vertical) for Sentiment over Time
+st.subheader("Sentiment Over Time")
+try:
+    fig_sentiment_time = plot_sentiments_over_time(
+        df=filtered_df,
+        sentiment_col='sentiment',
+        month_col='month'
+    )
+    st.plotly_chart(fig_sentiment_time)
+except:
+    st.warning("No data available for sentiment over time.")
 
 # endregion
+
+
 

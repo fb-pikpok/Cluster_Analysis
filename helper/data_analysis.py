@@ -104,7 +104,7 @@ def translate_data(data, id_column, prompt_template_translation, api_settings, c
                     {"role": "system", "content": "You are a helpful assistant for translation."},
                     {"role": "user", "content": prompt_translation},
                 ],
-                max_tokens=1024
+                max_tokens=4096
             )
 
             # Extract translation from the response
@@ -153,14 +153,37 @@ def extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns
                 {"role": "system", "content": "You are an expert in extracting topics from user reviews."},
                 {"role": "user", "content": prompt_topic},
             ],
-            max_tokens=1024,
+            max_tokens=4096,
             response_format={"type": "json_object"}
         )
         track_tokens(response)
-        return json.loads(response.choices[0].message.content)
+        response_json = json.loads(response.choices[0].message.content)
+
+        # Normalize the "topics" key
+        normalized_response = normalize_topics_key(response_json)
+        return normalized_response
+
+        return
     except Exception as e:
         logger.error(f"Error extracting topics for entry ID {entry_id}: {e}")
         return {"error": str(e)}
+
+def normalize_topics_key(response_json):
+    """
+    Normalize the key for topics in the outermost JSON object to "topics" (case-insensitive).
+    """
+    if not isinstance(response_json, dict):
+        logger.error("The JSON object is not a dictionary.")
+
+    # Find the key regardless of case
+    for key in response_json.keys():
+        if key.lower() == "topics":
+            # Standardize the key to "topics"
+            response_json["topics"] = response_json.pop(key)
+            return response_json
+
+    # If no "topics" key is found, raise an error
+    logger.error("The JSON does not contain a valid 'topics' key.")
 
 
 def analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_settings):
@@ -177,7 +200,7 @@ def analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_s
         api_settings (dict): API configuration from utils.py.
     """
     entry["topics"] = []
-    for topic in topics.get("Topics", []):
+    for topic in topics.get("topics", []):
         logger.info(f"Analyzing sentiment for topic '{topic['Topic']}' (Entry ID {entry_id})")
         try:
             prompt_sentiment = prompt_template_sentiment.format(
@@ -354,7 +377,7 @@ if __name__ == "__main__":
 
     configure_api(client, chat_model_name)
 
-    id_column = "Unnamed: 0"  # Column name for entry IDs
+    id_column = "recommendationid"  # Column name for entry IDs
     columns_of_interest = ["player_response"]  # Which cols should be analyzed?
     batch_size = 10  # Fail-safe batching. The higher the number, the less often the progress is saved.
 
