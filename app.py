@@ -14,9 +14,9 @@ st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis\Data/'           # Root
-s_project = r'Steamapps\Infection free zone/'                                                                      # Project
-#s_project = r'HRC/'                                                                      # Project
-s_db_table_preprocessed_json = os.path.join(s_root, s_project, 'db_final.json')         # Input data
+s_project = r'Steamapps\Days Gone/'                                                      # Project
+#s_project = r'HRC/'                                                                     # Project
+s_db_table_preprocessed_json = os.path.join(s_root, s_project, 'db_final.json')          # Input data
 
 # Load precomputed data
 @st.cache_data(show_spinner=False)
