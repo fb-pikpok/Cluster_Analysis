@@ -226,3 +226,69 @@ TOPICS:
 )
 
 # endregion
+
+
+# region Steam reviews
+
+prompt_template_topic_steam = PromptTemplate.from_template(
+'''
+Please list the most important topics and their respective original context in the review of a game in a json format with "Topic", "Category", "Context" arguments.
+Topics should be game features.  A feature in the game should be a noun rather than a verb or an adjective.
+Each topic should be categorized as a "fact" or a "request".
+No more than 10 topics.
+Respond in JSON format.
+
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"My first D&D experience and I'm enjoying it a lot. However, I would prefer a little more guidance as the mechanics are quite overwhelming at first (especially the combat mechanics)."
+
+TOPICS:
+
+[
+    {{
+        "Topic": "D:D",
+        "Category": "fact",
+        "Context": "My first D&D experience and I'm enjoying it a lot.",
+    }},
+    {{
+        "Topic": "combat mechanic",
+        "Category": "fact",
+        "Context": "the mechanics are quite overwhelming at first (especially the combat mechanics)",
+    }}
+]
+
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"I have only one point of criticism:
+This game lacks a proper ending or epilog; something like The Witcher's Blood & Wine DLC. After adventuring hundreds of hours, after growing fond of and close to my companions, I got kicked so hard out of the game - it hurt!
+In fact I immediately started a 2nd playthrough, because I wasn't yet ready to let go. Please Larian, give us an epilog or at least one last night at the camp with all my allies, companions and friends for the Definitive Edition."
+
+TOPICS:
+
+[
+    {{
+        "Topic": "epilogue",
+        "Category": "fact",
+        "Context": "This game lacks a proper ending or epilog",
+    }},
+    {{
+        "Topic": "companion",
+        "Category": "request",
+        "Context": "Please Larian, give us an epilog or at least one last night at the camp with all my allies, companions and friends for the Definitive Edition",
+    }}
+]
+
+
+[h0]==================================================================[\h0]
+REVIEW: 
+
+"{review}"
+
+TOPICS:
+
+'''
+)
