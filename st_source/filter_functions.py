@@ -35,7 +35,7 @@ optional_filters = {
     },
     "weighted_vote_score": {
         "description": "Most Helpful Reviews",
-        "logic": lambda df: df["weighted_vote_score"] > 0.80,
+        "logic": lambda df: df["weighted_vote_score"] > 0.70,
         "type": "checkbox"
     }
 }
