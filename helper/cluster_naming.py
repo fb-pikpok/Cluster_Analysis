@@ -57,7 +57,7 @@ def find_representative_topics(df, cluster_column, cluster_id, max_topics=8):
    centroid = np.mean(cluster_embeddings, axis=0)
    distances = cosine_distances([centroid], cluster_embeddings).flatten()
    closest_indices = np.argsort(distances)[:max_topics]
-   representative_topics = cluster_data.iloc[closest_indices]['topic'].tolist()
+   representative_topics = cluster_data.iloc[closest_indices]['sentence'].tolist()
    logger.info(f"Found {len(representative_topics)} Topics for {cluster_column} ID: {cluster_id}")
    return representative_topics
 
@@ -152,7 +152,6 @@ def process_clusters(df, dimensionality_methods, clustering_algorithms, max_cent
                                 # Store topics for reuse in 3D naming
                                 cluster_topics[cluster_id] = topics
 
-                                logger.info(f"KMeans Cluster ID {cluster_id} ({method}, k={n_clusters}, 2D): {cluster_name}")
                             else:
                                 # For 3D, reuse the name and topics from the 2D representation
                                 topics = cluster_topics.get(cluster_id, [])
