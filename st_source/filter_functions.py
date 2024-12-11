@@ -38,6 +38,8 @@ optional_filters = {
         "logic": lambda df: df["weighted_vote_score"] > 0.70,
         "type": "checkbox"
     }
+
+
 }
 
 
