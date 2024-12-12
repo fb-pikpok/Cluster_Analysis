@@ -126,10 +126,12 @@ selected_view = st.sidebar.radio("Select View", view_options)
 # region Cluster Selection
 if selected_clustering == "kmeans":
     clustering_column = f"{selected_clustering}_{selected_kmeans_size}_{selected_dimensionality}_{selected_view}"
+    clustering_name_column = f"{clustering_column}_name"
 else:
-    clustering_column = f"{selected_clustering}_{selected_dimensionality}_{selected_view}"
+    clustering_column = f"hdbscan_cluster_id"
+    clustering_name_column = f"hdbscan_cluster_name"
 
-clustering_name_column = f"{clustering_column}_name"
+
 
 # Add "All Clusters" option to the cluster selection
 if display_mode == "ID":
@@ -165,37 +167,22 @@ if selected_cluster_value != "All Clusters":
 # region Cluster Visualization
 
 # Map colors to clusters to ensure the same cluster has the same color across different visualizations / filters
-color_map = generate_color_map(
-    dataframe=df_total,
-    clustering_column=clustering_column,
-    clustering_name_column=clustering_name_column,
-    display_mode=display_mode
-)
-
-# Visualize the clusters
+# Cluster Visualization
+color_map = generate_color_map(df_total, clustering_column, clustering_name_column, display_mode)
 st.subheader("Cluster Visualization")
 if not filtered_df.empty:
-    x_col = f"{clustering_column}_x"
-    y_col = f"{clustering_column}_y"
-    z_col = f"{clustering_column}_z" if selected_view == "3D" else None
+    x_col = f"{selected_clustering}_{selected_dimensionality}_2D_x"
+    y_col = f"{selected_clustering}_{selected_dimensionality}_2D_y"
+    z_col = f"{selected_clustering}_{selected_dimensionality}_3D_z" if selected_view == "3D" else None
     missing_cols = [col for col in [x_col, y_col, z_col] if col and col not in df_total.columns]
-
     if missing_cols:
-        st.error(f"One or more selected columns are missing: {missing_cols}")
+        st.error(f"Missing columns: {missing_cols}")
     else:
-        fig = visualize_embeddings(
-            filtered_df,
-            x_col=x_col,
-            y_col=y_col,
-            z_col=z_col,
-            review_text_column='sentence',
-            colour_by_column=clustering_name_column if display_mode == "Name" else clustering_column,
-            color_map=color_map  # Pass the color map for consistent coloring
-        )
+        fig = visualize_embeddings(filtered_df, x_col, y_col, z_col, 'sentence',
+                                    clustering_name_column if display_mode == "Name" else clustering_column, color_map)
         st.plotly_chart(fig)
-
 else:
-    st.warning("No data available for the selected filters (visualization).")
+    st.warning("No data available for visualization.")
 # endregion
 
 

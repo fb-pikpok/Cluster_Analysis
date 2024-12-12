@@ -93,12 +93,11 @@ def apply_hdbscan(
         }
 
     # Perform Cluster Analysis
-    logger.info(f"Applying HDBSCAN with params: {hdbscan_params}")
-    logger.info(f"Clustering is performed in {mat.shape[1]} Dimensions.")
+    logger.info(f"Applying HDBSCAN in the original high-dimensional space with params: {hdbscan_params}")
     hdbscan_clusterer = hdbscan.HDBSCAN(**hdbscan_params)
     cluster_labels = hdbscan_clusterer.fit_predict(mat)
 
-    # Add cluster label
+    # Add primary cluster label
     df['hdbscan_cluster_id'] = cluster_labels
 
     # Dimensionality Reduction Results

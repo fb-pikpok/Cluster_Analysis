@@ -154,7 +154,7 @@ def process_clusters(df_total, dimensionality_methods, clustering_algorithms, ma
                             unique_cluster_names[cluster_id] = cluster_name
 
             elif algorithm == "hdbscan":
-                cluster_column = f"{algorithm}_{method}_2D"
+                cluster_column = f"hdbscan_cluster_id"
                 if cluster_column not in df_total.columns:
                     logger.warning(f"Column {cluster_column} not found in the DataFrame. Skipping.")
                     continue
@@ -173,8 +173,6 @@ def process_clusters(df_total, dimensionality_methods, clustering_algorithms, ma
                         cluster_name = generate_cluster_name(topics, api_settings)
                         unique_cluster_names[cluster_id] = cluster_name
 
-#TODO: Make simple and imporve the logic. Only name each cluster ID once. Get rid of all the dim red specifics and 2d 3d stuff
-# similar to the loop below
 
     # Add cluster names to all columns
     for method in dimensionality_methods:
