@@ -197,30 +197,128 @@ def process_clusters(df_total, dimensionality_methods, clustering_algorithms, ma
     logger.info("Cluster naming process completed.")
     return df_total
 
+import pandas as pd
+import numpy as np
+from collections import Counter
+import re
+from sklearn.feature_extraction.text import ENGLISH_STOP_WORDS
+
+# Step 1: Clean and Preprocess Sentences
+def clean_text(text):
+    """
+    Cleans the input text by removing special characters, stopwords, and filler words.
+
+    Args:
+        text (str): The input text.
+
+    Returns:
+        str: Cleaned text.
+    """
+    # Remove special characters and numbers
+    text = re.sub(r"[^a-zA-Z\s]", "", text)
+    # Convert to lowercase
+    text = text.lower()
+    # Tokenize and remove stopwords
+    words = text.split()
+    words = [word for word in words if word not in ENGLISH_STOP_WORDS]
+    return " ".join(words)
+
+# Step 2: Aggregate Sentences by Cluster
+
+def aggregate_sentences_by_cluster(df, cluster_column):
+    """
+    Aggregates all sentences within each cluster.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing sentences and cluster IDs.
+        cluster_column (str): Column representing cluster IDs.
+
+    Returns:
+        dict: Mapping of cluster ID to aggregated text.
+    """
+    aggregated_text = (
+        df[df[cluster_column] != -1]  # Exclude noise cluster (-1)
+        .groupby(cluster_column)['sentence']
+        .apply(lambda x: " ".join(clean_text(sentence) for sentence in x))
+        .to_dict()
+    )
+    return aggregated_text
+
+# Step 3: Identify Top Words per Cluster
+def compute_top_words_per_cluster(aggregated_text, top_n=10):
+    """
+    Computes the top N most used words for each cluster.
+
+    Args:
+        aggregated_text (dict): Mapping of cluster ID to aggregated text.
+        top_n (int): Number of top words to compute.
+
+    Returns:
+        dict: Mapping of cluster ID to list of top words.
+    """
+    cluster_top_words = {}
+    for cluster_id, text in aggregated_text.items():
+        words = text.split()
+        word_counts = Counter(words)
+        top_words = [word for word, _ in word_counts.most_common(top_n)]
+        cluster_top_words[cluster_id] = top_words
+    return cluster_top_words
+
+# Step 4: Assign Cluster Names to DataFrame
+def assign_cluster_names(df, cluster_column, cluster_top_words):
+    """
+    Assigns cluster names based on top words to the DataFrame.
+
+    Args:
+        df (pd.DataFrame): DataFrame containing cluster information.
+        cluster_column (str): Column representing cluster IDs.
+        cluster_top_words (dict): Mapping of cluster ID to top words.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with cluster names.
+    """
+    df['hdbscan_cluster_name'] = df[cluster_column].map(
+        lambda x: "Unknown" if x == -1 else ", ".join(cluster_top_words.get(x, ["Unknown"]))
+    )
+    return df
+
+
 
 
 if __name__ == "__main__":
-   # Paths and parameters
-   s_root = r"C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis"
-   input_file = os.path.join(s_root, "Data", "db_clustered.json")
-   output_file = os.path.join(s_root, "Data", "db_final.json")
+   root_dir = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis\Data\Steamapps'
+   steam_title = 'Market'
+   input_file = os.path.join(root_dir, steam_title, "db_clustered.json")
+   output_file = os.path.join(root_dir, steam_title, "db_clustered_named.json")
 
-   dimensionality_methods = ["UMAP", "PCA", "tSNE"]
-   clustering_algorithms = ["hdbscan", "kmeans"]
-   kmeans_clusters = [15]  # Number of clusters for KMeans
-   max_centers = 8  # Maximum number of topics for naming
+   # dimensionality_methods = ["UMAP", "PCA", "tSNE"]
+   # clustering_algorithms = ["hdbscan", "kmeans"]
+   # kmeans_clusters = [15]  # Number of clusters for KMeans
+   # max_centers = 8  # Maximum number of topics for naming
+   #
+   # # Load data
+   # df_total = load_json_into_df(input_file)
+   #
+   # # API settings
+   # chat_model_name = 'gpt-4o-mini'
+   # configure_api(client, chat_model_name)
+   #
+   # # Process clusters and generate names
+   # df_total = process_clusters(df_total, dimensionality_methods, clustering_algorithms, kmeans_clusters, max_centers,
+   #                             api_settings)
+   #
+   # # Save results
+   # save_df_as_json(df_total, output_file)
 
-   # Load data
-   df_total = load_json_into_df(input_file)
+    # Example Workflow
+   # # Load data
+   df = load_json_into_df(input_file)
+   cluster_column = "hdbscan_cluster_id"
 
-   # API settings
-   chat_model_name = 'gpt-4o-mini'
-   configure_api(client, chat_model_name)
+   # Process clusters
+   aggregated_text = aggregate_sentences_by_cluster(df, cluster_column)
+   cluster_top_words = compute_top_words_per_cluster(aggregated_text, top_n=10)
+   df = assign_cluster_names(df, cluster_column, cluster_top_words)
 
-   # Process clusters and generate names
-   df_total = process_clusters(df_total, dimensionality_methods, clustering_algorithms, kmeans_clusters, max_centers,
-                               api_settings)
-
-   # Save results
-   save_df_as_json(df_total, output_file)
-
+   # Save the updated DataFrame
+   save_data_for_streamlit(df, output_file)
