@@ -154,7 +154,7 @@ def process_clusters(df_total, dimensionality_methods, clustering_algorithms, ma
                             unique_cluster_names[cluster_id] = cluster_name
 
             elif algorithm == "hdbscan":
-                cluster_column = f"{algorithm}_{method}_2D"
+                cluster_column = f"hdbscan_cluster_id"
                 if cluster_column not in df_total.columns:
                     logger.warning(f"Column {cluster_column} not found in the DataFrame. Skipping.")
                     continue

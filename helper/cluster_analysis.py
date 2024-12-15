@@ -98,6 +98,7 @@ def apply_hdbscan(
     hdbscan_clusterer = hdbscan.HDBSCAN(**hdbscan_params)
     cluster_labels = hdbscan_clusterer.fit_predict(mat)
 
+    logger.info(f"Number of clusters found: {len(set(cluster_labels))}")
     # Add cluster label
     df['hdbscan_cluster_id'] = cluster_labels
 
