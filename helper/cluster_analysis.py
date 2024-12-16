@@ -93,9 +93,11 @@ def apply_hdbscan(
         }
 
     # Perform Cluster Analysis
-    logger.info(f"Applying HDBSCAN in the original high-dimensional space with params: {hdbscan_params}")
+    logger.info(f"Applying HDBSCAN with: {hdbscan_params}")
     hdbscan_clusterer = hdbscan.HDBSCAN(**hdbscan_params)
     cluster_labels = hdbscan_clusterer.fit_predict(mat)
+
+    logger.info(f"Found {len(np.unique(cluster_labels))} clusters.")
 
     # Add primary cluster label
     df['hdbscan_cluster_id'] = cluster_labels
