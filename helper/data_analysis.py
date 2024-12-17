@@ -1,7 +1,9 @@
 import json
+import os
 from pathlib import Path
 from lingua import Language, LanguageDetectorBuilder
 from helper.utils import *
+from helper.prompt_templates import *
 
 # Initialize language detector
 detector = LanguageDetectorBuilder.from_languages(
@@ -24,100 +26,149 @@ def track_tokens(response):
     completion_tokens += response.usage.completion_tokens
 
 # region Translation
+import os
+import pandas as pd
+from lingua import Language, LanguageDetectorBuilder
+import logging
 
-def detect_player_language(data, id_column, columns_of_interest):
+# Initialize logger
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# Initialize language detector
+detector = LanguageDetectorBuilder.from_languages(
+    Language.ENGLISH, Language.SPANISH, Language.CHINESE, Language.GERMAN, Language.FRENCH
+).build()
+
+# region Translation
+
+def detect_language_in_dataframe(df, text_column='review_text', language_column='language'):
     """
-    Detects the language of specified fields for each JSON tuple
-    and adds a new key 'player_language' with the detected language.
+    Adds a 'language' column to a DataFrame by detecting the language of a text column.
 
     Args:
-        data (list): List of JSON-like dictionaries.
-        id_column (str): Column name to use as the unique identifier (only for logging).
-        columns_of_interest (list): List of column names to detect the language for.
+        df (pd.DataFrame): Input DataFrame with a text column.
+        text_column (str): Name of the column containing text for language detection.
+        language_column (str): Name of the new column to store detected languages.
 
     Returns:
-        list: Updated list of dictionaries with 'player_language' key.
+        pd.DataFrame: Updated DataFrame with the 'language' column added.
     """
-    for entry_idx, entry in enumerate(data):
-        entry_id = entry.get(id_column, "unknown")
+    # Check if the 'language' column already exists
+    if language_column in df.columns:
+        logger.info(f"'{language_column}' column already exists. Skipping language detection.")
+        return df
 
-        # Combine text from specified fields
-        combined_text = " ".join(
-            str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
-            for field in columns_of_interest
-            if entry.get(field) is not None  # Ensure the field value is not None
-        )
+    logger.info(f"Starting language detection for column: '{text_column}'")
 
-        # If the combined text is empty, no language detection is performed
-        if combined_text.strip():
-            try:
-                # Detect language using the provided detector
-                detected_language = detector.detect_language_of(combined_text)
-                entry["player_language"] = detected_language.name.lower()      # Store detected language in "player_language"
-            except Exception as e:
-                logger.error(f"Error detecting language for entry #{entry_id}: {e}")
-                entry["player_language"] = "error"  # Indicate an error during detection
-        else:
-            entry["player_language"] = None  # No language detected for empty text
-
-    return data
-
-
-def translate_data(data, id_column, prompt_template_translation, api_settings, columns_of_interest):
-    """
-    Translates specified fields in the dataset if the detected language is not English.
-
-    Args:
-        data (list): List of JSON-like dictionaries.
-        prompt_template_translation (PromptTemplate): Template for translation prompts.
-        api_settings (dict): Dictionary with API settings, including the client and model.
-        columns_of_interest (list): List of column names to combine and translate.
-
-    Returns:
-        list: Updated list with translated 'player_response' fields.
-    """
-    for entry_idx, entry in enumerate(data):
-        entry_id = entry.get(id_column, "unknown")
+    def detect_language(text):
+        """Helper function to detect language using Lingua."""
+        if pd.isnull(text) or not isinstance(text, str) or text.strip() == "":
+            return 'unknown'
         try:
-            # Combine review fields into one text
-            combined_text = " ".join(
-                str(entry.get(field, "")).strip()  # Convert field value to string and strip whitespace
-                for field in columns_of_interest
-                if entry.get(field)
-            )
-            detected_language = entry.get("player_language", "none")
-            # Skip translation for English or empty responses
-            if detected_language in ["english", "none"] or not combined_text.strip():
-                continue
+            detected_lang = detector.detect_language_of(text)
+            return detected_lang.name.lower() if detected_lang else 'unknown'
+        except Exception as e:
+            logger.error(f"Error detecting language for text: {text[:30]}...: {e}")
+            return 'unknown'
 
-            logger.info(f"Translating entry ID {entry_id} (Language: {detected_language})")
+    # Apply the function row-wise and create the 'language' column
+    df[language_column] = df[text_column].apply(detect_language)
+    logger.info(f"Language detection completed. Added column '{language_column}'.")
 
-            # Format the prompt for translation
-            prompt_translation = prompt_template_translation.format(
-                text=combined_text
-            )
+    return df
 
-            # Make API call to translate
-            response = api_settings["client"].chat.completions.create(
-                model=api_settings["model"],
-                messages=[
-                    {"role": "system", "content": "You are a helpful assistant for translation."},
-                    {"role": "user", "content": prompt_translation},
-                ],
-                max_tokens=4096
-            )
 
-            # Extract translation from the response
-            translation_text = response.choices[0].message.content.strip()
+def translate_reviews(df, file_path, id_column='recommendationid', text_column='review_text',
+                    language_column='language'):
+    """
+    Processes reviews by checking for existing translations, detecting language, and translating non-English reviews.
+    New rows are appended to the existing file, and the updated DataFrame is saved.
 
-            # Save the translated text in the 'player_response' key
-            entry["player_response"] = translation_text
+    Args:
+        df (pd.DataFrame): Input DataFrame containing reviews.
+        file_path (str): Path to save or load the existing file.
+        id_column (str): Column containing unique IDs for comparison.
+        text_column (str): Column containing review text.
+        language_column (str): Column to store detected languages.
+
+    Returns:
+        pd.DataFrame: Updated DataFrame with all reviews (existing and new).
+    """
+    # Step 1: Load existing data or start fresh
+    if os.path.exists(file_path):
+        logger.info(f"Loading existing reviews from: {file_path}")
+        existing_df = pd.read_pickle(file_path)
+        existing_ids = set(existing_df[id_column].unique())
+    else:
+        logger.info("No existing file found. Starting fresh.")
+        existing_df = pd.DataFrame(columns=df.columns)
+        existing_ids = set()
+
+    # Step 2: Process new rows
+    new_data = []
+    num_translated = 0  # Counter for translated reviews
+    new_reviews_count = len(df[~df[id_column].isin(existing_ids)])
+    logger.info(f"Found {new_reviews_count} new reviews to process.")
+
+    for _, row in df.iterrows():
+        review_id = row[id_column]
+        if review_id in existing_ids:
+            continue  # Skip IDs that already exist
+
+        text = row[text_column]
+        if not isinstance(text, str) or not text.strip():
+            continue  # Skip rows with invalid text
+
+        try:
+            # Detect language
+            detected_language = detector.detect_language_of(text)
+            if detected_language is not None:
+                detected_language = detected_language.name.lower()
+            else:
+                detected_language = 'unknown'
+
+            # If not English, translate the text
+            if detected_language != 'english':
+                logger.info(f"Translating review ID: {review_id} (Detected Language: {detected_language})")
+                prompt_translation = prompt_template_translation.format(text=text)
+                response = api_settings["client"].chat.completions.create(
+                    model=api_settings["model"],
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant for translation."},
+                        {"role": "user", "content": prompt_translation},
+                    ],
+                    max_tokens=4096
+                )
+                translated_text = response.choices[0].message.content.strip()
+                row[text_column] = translated_text  # Overwrite with translated text
+                num_translated += 1  # Increment translation counter
+
+            # Append the updated row
+            row[language_column] = detected_language
+            new_data.append(row)
 
         except Exception as e:
-            logger.error(f"Error translating entry ID {entry_id}: {e}")
-            raise
+            logger.error(f"Error processing review ID: {review_id} | {e}")
 
-    return data
+    # Step 3: Combine existing and new rows
+    if new_data:
+        new_df = pd.DataFrame(new_data)
+        if existing_df.empty:
+            updated_df = new_df  # If no existing data, use new_df directly
+        else:
+            updated_df = pd.concat([existing_df, new_df], ignore_index=True)
+        updated_df.to_pickle(file_path)
+        logger.info(f"Updated file saved to: {file_path}")
+    else:
+        logger.info("No new reviews to add. All IDs already exist.")
+        updated_df = existing_df  # No new data, return existing_df as is
+
+    # Final log summary
+    logger.info(f"Translation completed. Total reviews translated: {num_translated}")
+
+    return updated_df
+
 
 # endregion
 
