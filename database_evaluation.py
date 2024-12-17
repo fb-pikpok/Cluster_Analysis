@@ -64,7 +64,7 @@ file_analysed = os.path.join(root_dir, f'{steam_title}_2_analysed.pkl')
 sql_query = """
 SELECT * 
 FROM steam_review 
-where app_id_name = '1928980_Nightingale' LIMIT 13
+where app_id_name = '1928980_Nightingale' LIMIT 15
 """
 logger.info(f"Query Redshift with: {sql_query}")
 
@@ -81,14 +81,6 @@ except Exception as e:
 
 # region Translate Reviews
 
-# try:
-#     results_df = detect_language_in_dataframe(results_df, text_column='review_text', language_column='language')
-#     print(results_df.head())
-# except Exception as e:
-#     logger.error(f"Error running language detection: {e}")
-
-
-# Process reviews
 updated_df = translate_reviews(
     df=results_df,
     file_path=file_translated,
@@ -96,9 +88,6 @@ updated_df = translate_reviews(
     text_column='review_text',
     language_column='language'
 )
-
-updated_df.to_pickle(file_translated)
-
 # endregion
 
 
