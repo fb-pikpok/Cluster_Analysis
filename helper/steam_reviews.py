@@ -1,4 +1,6 @@
 import re
+
+from docs.conf import language
 from lytikit.celery_app import celery
 from lytikit.database import CeleryDatabaseTask
 from datetime import datetime
@@ -188,6 +190,7 @@ class SteamScraper():
                     my_review_dict = {
                         'app_id_name': f"{review_appid}_{app_name}",
                         'recommendationid': recommendation_id,
+                        'language': language,
                         'playtime_at_review_minutes': playtime_at_review_minutes,
                         'last_played': last_played,
                         'review_text': review_text,
@@ -241,21 +244,21 @@ if __name__ == '__main__':
         # 'https://store.steampowered.com/app/2163330/Yet_Another_Zombie_Survivors/',
         # 'https://store.steampowered.com/app/1766060/HumanitZ/',
         # 'https://store.steampowered.com/app/2439510/Doomsday_Last_Survivors/',
-        'https://store.steampowered.com/app/2351560/Apocalypse_Party/',
-        'https://store.steampowered.com/app/1947500/The_Walking_Dead_Saints__Sinners__Chapter_2_Retribution/'
-        'https://store.steampowered.com/app/1641960/Forever_Skies/',
-        'https://store.steampowered.com/app/2244130/Ratopia/',
-        'https://store.steampowered.com/app/1326470/Sons_Of_The_Forest/',
-        'https://store.steampowered.com/app/2080690/Sunkenland/',
-        'https://store.steampowered.com/app/2139460/Once_Human/',
-        'https://store.steampowered.com/app/1458140/Pacific_Drive/',
-        'https://store.steampowered.com/app/1203620/Enshrouded/',
-        'https://store.steampowered.com/app/1928980/Nightingale/',
-        'https://store.steampowered.com/app/2739590/Mad_Island/'  # TODO are you sure about this??? ----> NSFW
+        # 'https://store.steampowered.com/app/2351560/Apocalypse_Party/',
+        # 'https://store.steampowered.com/app/1947500/The_Walking_Dead_Saints__Sinners__Chapter_2_Retribution/'
+        # 'https://store.steampowered.com/app/1641960/Forever_Skies/',
+        # 'https://store.steampowered.com/app/2244130/Ratopia/',
+        # 'https://store.steampowered.com/app/1326470/Sons_Of_The_Forest/',
+        # 'https://store.steampowered.com/app/2080690/Sunkenland/',
+        # 'https://store.steampowered.com/app/2139460/Once_Human/',
+        # 'https://store.steampowered.com/app/1458140/Pacific_Drive/',
+        # 'https://store.steampowered.com/app/1203620/Enshrouded/',
+        # 'https://store.steampowered.com/app/1928980/Nightingale/',
+        # 'https://store.steampowered.com/app/2739590/Mad_Island/'  # TODO are you sure about this??? ----> NSFW
+        'https://store.steampowered.com/app/1166860/Rival_Stars_Horse_Racing_Desktop_Edition/'
     ]
 
-    start_time = datetime(2024, 12, 1, 0, 0, 0)
-    end_time = datetime.now()
+
 
     SteamScraper().format(urls)
     print('Done')

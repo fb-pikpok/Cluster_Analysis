@@ -60,6 +60,7 @@ def process_batch(batch, embed_model, b_override, embed_key="topic"):
 
 
 
+
 if __name__ == "__main__":
     # Example setup for testing the helper
     s_root = r"C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis"

@@ -265,6 +265,46 @@ TOPIC: {topic}
 SENTIMENT: '''
 )
 
+
+prompt_template_influencer = PromptTemplate.from_template(
+'''
+Please list the most important topics and their respective original context in the excerpt of a video transcript in a JSON format with "Topic", "Category", and "Context" arguments.
+The Topic should focus on a specific game feature or aspect. The Category should be either "fact" or "request". The Context should be a direct quote from the transcript that explains the topic.
+
+
+[h0]==================================================================[\h0]
+TRANSCRIPT:
+
+"The camera during show jumping feels awkward—it’s hard to follow the horse smoothly. Also, the hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
+
+TOPICS:
+
+{{
+   "Topics": [
+       {{
+           "Topic": "Camera Movement",
+           "Category": "request",
+           "Context": "The camera during show jumping feels awkward—it’s hard to follow the horse smoothly."
+       }},
+       {{
+           "Topic": "Fence Hitboxes",
+           "Category": "request",
+           "Context": "The hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
+       }}
+   ]
+}}
+
+[h0]==================================================================[\h0]
+TRANSCRIPT:
+
+"{transcript}"
+
+TOPICS:
+
+'''
+)
+
+
 # prompt_template_cluster_naming = (
 # '''Based on the following topics, generate a concise name (5 words or fewer) that best describes the general theme of this cluster.
 #
