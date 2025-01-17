@@ -145,7 +145,7 @@ def save_reviews_to_database(selected_reviews):
     entries = [
         (
             review['app_id_name'], review['recommendationid'], review['playtime_at_review_minutes'],
-            review['last_played'], review['review_text'], review['timestamp_updated'],
+            review['language'], review['last_played'], review['review_text'], review['timestamp_updated'],
             review['voted_up'], review['votes_up'], review['votes_funny'],
             review['weighted_vote_score'], review['steam_purchase'], review['received_for_free'],
             review['written_during_early_access']
@@ -156,9 +156,9 @@ def save_reviews_to_database(selected_reviews):
     # we save it in redshift
     sql = """
     INSERT INTO
-    steam_review( app_id_name, recommendationid, playtime_at_review_minutes, last_played, review_text, timestamp_updated,
+    steam_review( app_id_name, recommendationid, playtime_at_review_minutes, language, last_played, review_text, timestamp_updated,
     voted_up, votes_up, votes_funny, weighted_vote_score, steam_purchase, received_for_free, written_during_early_access)
-    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
     with redshift_connect_scope() as conn:
         with conn.cursor() as cursor:
@@ -292,15 +292,6 @@ class SteamScraper():
                 # break if we reach the end of the comments
                 if not next_page or seen_cursors_count > 10:
                     next_page = False
-
-
-connection_dict = {
-    "database": "dev",
-    "host": "strato.crg5lkhjvyxc.us-west-2.redshift.amazonaws.com",
-    "password": "XygtHvanY3",
-    "port": 5439,
-    "user": "redshift"
-}
 
 
 def from_redshift_to_df(sql):
