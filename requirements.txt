@@ -4,7 +4,6 @@ numpy
 scikit-learn
 llama-index
 llama_index.embeddings.langchain
-
 langchain
 openai
 python-dotenv
@@ -16,4 +15,7 @@ nltk
 plotly
 sentence-transformers
 matplotlib
--U langchain-community
+## Insert this install into the readme:  pip install -U langchain-community
+
+
+

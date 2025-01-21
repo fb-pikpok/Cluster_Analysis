@@ -1,0 +1,9 @@
+OPENAI_API_KEY = "Your OpenAI API Key"
+######
+# Redshift
+
+REDSHIFT_DATABASE=  your redshift credentials
+REDSHIFT_HOST=      your redshift credentials
+REDSHIFT_PASSWORD=  your redshift credentials
+REDSHIFT_PORT=      your redshift credentials
+REDSHIFT_USER=      your redshift credentials
