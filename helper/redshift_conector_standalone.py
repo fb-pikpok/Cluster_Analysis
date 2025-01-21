@@ -1,9 +1,7 @@
 import json
-
-from docs.conf import language
 from psycopg2 import connect, InternalError
 from contextlib import contextmanager
-import pandas as pd
+
 from dotenv import load_dotenv
 import os
 

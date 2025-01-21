@@ -2,7 +2,9 @@ streamlit
 pandas
 numpy
 scikit-learn
-llama-index-core
+llama-index
+llama_index.embeddings.langchain
+
 langchain
 openai
 python-dotenv
@@ -14,3 +16,4 @@ nltk
 plotly
 sentence-transformers
 matplotlib
+-U langchain-community
