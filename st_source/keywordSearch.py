@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity
 from llama_index.embeddings.langchain import LangchainEmbedding
-from langchain.embeddings import HuggingFaceEmbeddings
+from langchain_community.embeddings import HuggingFaceEmbeddings
 
 # Define paths
 s_root = r'C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis'
