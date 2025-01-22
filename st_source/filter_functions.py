@@ -28,9 +28,12 @@ optional_filters = {
         "logic": lambda df: df["ever_been_subscriber"] == 1,
         "type": "checkbox"
     },
-    "playtime_at_review": {
+    "playtime_at_review_minutes": {
         "description": "Playtime at Review (Minutes)",
-        "logic": lambda df, min_val, max_val: (df["playtime_at_review"] >= min_val) & (df["playtime_at_review"] <= max_val),
+        "logic": lambda df, min_val, max_val: (
+            (df["playtime_at_review_minutes"] >= min_val) &
+            (df["playtime_at_review_minutes"] <= max_val if max_val < 12000 else True)
+        ),
         "type": "slider"
     },
     "weighted_vote_score": {
@@ -43,7 +46,7 @@ optional_filters = {
 }
 
 
-def apply_optional_filters(dataframe, optional_filters):
+def apply_optional_filters(dataframe):
     """
     Dynamically applies optional filters to a DataFrame based on column presence and user input.
 
@@ -62,15 +65,26 @@ def apply_optional_filters(dataframe, optional_filters):
         if col in dataframe.columns:
             filter_type = filter_details.get("type", "checkbox")  # Default to checkbox if type is not specified
             if filter_type == "slider":
-                # Add a slider-based filter
-                min_val = int(dataframe[col].min())
-                max_val = int(dataframe[col].max())
-                selected_filters[col] = st.sidebar.slider(
-                    filter_details["description"],
-                    min_value=min_val,
-                    max_value=max_val,
-                    value=(min_val, max_val)
-                )
+                # Handle playtime_at_review_minutes with a fixed slider range
+                if col == "playtime_at_review_minutes":
+                    slider_min = 0
+                    slider_max = 12000  # Cap the slider at 12,000 (200 hours)
+                    selected_filters[col] = st.sidebar.slider(
+                        filter_details["description"],
+                        min_value=slider_min,
+                        max_value=slider_max,
+                        value=(slider_min, slider_max)
+                    )
+                else:
+                    # Default slider logic
+                    min_val = int(dataframe[col].min())
+                    max_val = int(dataframe[col].max())
+                    selected_filters[col] = st.sidebar.slider(
+                        filter_details["description"],
+                        min_value=min_val,
+                        max_value=max_val,
+                        value=(min_val, max_val)
+                    )
             elif filter_type == "checkbox":
                 # Add a checkbox-based filter
                 selected_filters[col] = st.sidebar.checkbox(filter_details["description"], value=False)

@@ -25,9 +25,7 @@ def load_data(json_path):
         data = json.load(f)
     df = pd.DataFrame(data)
 
-    #TODO: This should be handled in preprocessing
-    # region Handle empty cells and non String values for the filters
-
+    # region Data Preprocessing
     # Handle 'prestige_rank' column: replace empty strings with 0 and convert to integers
     try:
         df['prestige_rank'] = pd.to_numeric(df['prestige_rank'].replace("", 0), errors='coerce').fillna(0).astype(int)
@@ -54,7 +52,7 @@ def load_data(json_path):
 
     # Steam review Stuff
     try:
-        df['playtime_at_review'] = df['author'].apply(lambda x: x.get('playtime_at_review', 0))
+        df['playtime_at_review_minutes'] = df['author'].apply(lambda x: x.get('playtime_at_review_minutes', 0))
     except:
         pass
 
@@ -66,8 +64,8 @@ def load_data(json_path):
 
     # Convert 'timestamp_created' to a datetime object and extract the month
     try:
-        df['timestamp_created'] = pd.to_datetime(df['timestamp_created'], unit='ms')  # Convert from milliseconds
-        df['month'] = df['timestamp_created'].dt.to_period('M').astype(str)  # Convert to string for JSON serialization
+        df['timestamp_updated'] = pd.to_datetime(df['timestamp_updated'], unit='ms')  # Convert from milliseconds
+        df['month'] = df['timestamp_updated'].dt.to_period('M').astype(str)  # Convert to string for JSON serialization
     except:
         pass
 
@@ -145,7 +143,7 @@ selected_cluster_value = st.sidebar.selectbox("Select Cluster", cluster_options)
 
 # region Filters
 # Optional filters in st_source.filter_functions.py
-filtered_df = apply_optional_filters(df_total, optional_filters)
+filtered_df = apply_optional_filters(df_total)
 
 # Hide noise if selected
 if hide_noise:
