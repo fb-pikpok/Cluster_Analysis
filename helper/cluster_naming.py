@@ -111,7 +111,7 @@ def generate_cluster_name(topics_list, api_settings):
 def process_clusters(df_total, dimensionality_methods, clustering_algorithms, max_centers, api_settings,
                                  kmeans_clusters=None):
     """
-    Processes clusters to generate names, ensuring each unique cluster ID is named only once.
+    Processes clusters to generate names.
 
     Args:
         df_total (pd.DataFrame): Input DataFrame with cluster information.
