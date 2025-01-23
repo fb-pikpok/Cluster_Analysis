@@ -1,3 +1,4 @@
+import _plotly_utils.colors
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.colors import qualitative
@@ -148,26 +149,109 @@ def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, 
 
 
 
+import matplotlib.cm as cm
+import matplotlib.colors as mcolors
+
+# def generate_color_map(dataframe, clustering_column, clustering_name_column, display_mode, colormap_name='tab20'):
+#     """
+#     Dynamically generates a color map for clusters, ensuring enough unique colors for all clusters.
+#
+#     Args:
+#         dataframe (pd.DataFrame): The input dataframe containing cluster information.
+#         clustering_column (str): The column name for cluster IDs.
+#         clustering_name_column (str): The column name for cluster names.
+#         display_mode (str): "ID" for cluster IDs, "Name" for cluster names.
+#         colormap_name (str): The name of the matplotlib colormap to use. Defaults to 'tab20'.
+#
+#     Returns:
+#         dict: A dictionary mapping unique clusters to colors.
+#     """
+#     # Determine unique clusters based on the display mode
+#     if display_mode == "Name":
+#         unique_clusters = sorted(dataframe[clustering_name_column].dropna().unique())
+#     else:
+#         unique_clusters = sorted(dataframe[clustering_column].dropna().unique())
+#
+#     num_clusters = len(unique_clusters)
+#
+#     # Generate distinct colors using HSV color space
+#     colors = [
+#         mcolors.to_hex(mcolors.hsv_to_rgb((i / num_clusters, 0.8, 0.8)))  # Hue, Saturation, Value
+#         for i in range(num_clusters)
+#     ]
+#
+#     # Create the color map dictionary
+#     color_map = {cluster: colors[i] for i, cluster in enumerate(unique_clusters)}
+#
+#     return color_map
 
 
-def generate_color_map(dataframe, clustering_column, clustering_name_column, display_mode, palette=None):
+# def generate_color_map(dataframe, clustering_column, clustering_name_column, display_mode, palette=None):
+#     """
+#     Generates a color map for clusters in the dataframe.
+#
+#     Args:
+#         dataframe (pd.DataFrame): The input dataframe containing cluster information.
+#         clustering_column (str): The column name for cluster IDs.
+#         clustering_name_column (str): The column name for cluster names.
+#         display_mode (str): "ID" for cluster IDs, "Name" for cluster names.
+#         palette (list): Optional custom color palette. Defaults to Plotly's qualitative Set2.
+#
+#     Returns:
+#         dict: A dictionary mapping unique clusters to colors.
+#     """
+#     if palette is None:
+#         palette = _plotly_utils.colors.qualitative.__all__
+#
+#
+#
+#     max_colors = len(palette)
+#
+#     # Determine unique clusters based on the display mode
+#     if display_mode == "Name":
+#         unique_clusters = sorted(dataframe[clustering_name_column].dropna().unique())
+#     else:
+#         unique_clusters = sorted(dataframe[clustering_column].dropna().unique())
+#
+#     # Create the color map dictionary
+#     color_map = {cluster: palette[i % max_colors] for i, cluster in enumerate(unique_clusters)}
+#
+#     return color_map
+
+
+def generate_color_map(dataframe, clustering_column, clustering_name_column, display_mode):
     """
-    Generates a color map for clusters in the dataframe.
+    Generates a color map for clusters using CSS color names.
 
     Args:
         dataframe (pd.DataFrame): The input dataframe containing cluster information.
         clustering_column (str): The column name for cluster IDs.
         clustering_name_column (str): The column name for cluster names.
         display_mode (str): "ID" for cluster IDs, "Name" for cluster names.
-        palette (list): Optional custom color palette. Defaults to Plotly's qualitative Set2.
 
     Returns:
-        dict: A dictionary mapping unique clusters to colors.
+        dict: A dictionary mapping unique clusters to CSS colors.
     """
-    if palette is None:
-        palette = qualitative.Set2  # Default Plotly color palette
-
-    max_colors = len(palette)
+    # List of CSS color names
+    css_colors = [
+        "aliceblue", "antiquewhite", "aqua", "aquamarine", "azure", "beige", "bisque", "black", "blanchedalmond", "blue",
+        "blueviolet", "brown", "burlywood", "cadetblue", "chartreuse", "chocolate", "coral", "cornflowerblue", "cornsilk",
+        "crimson", "cyan", "darkblue", "darkcyan", "darkgoldenrod", "darkgray", "darkgrey", "darkgreen", "darkkhaki",
+        "darkmagenta", "darkolivegreen", "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen", "darkslateblue",
+        "darkslategray", "darkslategrey", "darkturquoise", "darkviolet", "deeppink", "deepskyblue", "dimgray", "dimgrey",
+        "dodgerblue", "firebrick", "floralwhite", "forestgreen", "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod",
+        "gray", "grey", "green", "greenyellow", "honeydew", "hotpink", "indianred", "indigo", "ivory", "khaki", "lavender",
+        "lavenderblush", "lawngreen", "lemonchiffon", "lightblue", "lightcoral", "lightcyan", "lightgoldenrodyellow",
+        "lightgray", "lightgrey", "lightgreen", "lightpink", "lightsalmon", "lightseagreen", "lightskyblue", "lightslategray",
+        "lightslategrey", "lightsteelblue", "lightyellow", "lime", "limegreen", "linen", "magenta", "maroon", "mediumaquamarine",
+        "mediumblue", "mediumorchid", "mediumpurple", "mediumseagreen", "mediumslateblue", "mediumspringgreen", "mediumturquoise",
+        "mediumvioletred", "midnightblue", "mintcream", "mistyrose", "moccasin", "navajowhite", "navy", "oldlace", "olive",
+        "olivedrab", "orange", "orangered", "orchid", "palegoldenrod", "palegreen", "paleturquoise", "palevioletred",
+        "papayawhip", "peachpuff", "peru", "pink", "plum", "powderblue", "purple", "red", "rosybrown", "royalblue",
+        "saddlebrown", "salmon", "sandybrown", "seagreen", "seashell", "sienna", "silver", "skyblue", "slateblue",
+        "slategray", "slategrey", "snow", "springgreen", "steelblue", "tan", "teal", "thistle", "tomato", "turquoise",
+        "violet", "wheat", "white", "whitesmoke", "yellow", "yellowgreen"
+    ]
 
     # Determine unique clusters based on the display mode
     if display_mode == "Name":
@@ -175,11 +259,15 @@ def generate_color_map(dataframe, clustering_column, clustering_name_column, dis
     else:
         unique_clusters = sorted(dataframe[clustering_column].dropna().unique())
 
-    # Create the color map dictionary
-    color_map = {cluster: palette[i % max_colors] for i, cluster in enumerate(unique_clusters)}
+    # Check if there are more clusters than colors
+    num_clusters = len(unique_clusters)
+    if num_clusters > len(css_colors):
+        raise ValueError(f"Too many clusters! Maximum supported: {len(css_colors)}, but got {num_clusters}.")
+
+    # Assign colors to clusters
+    color_map = {cluster: css_colors[i] for i, cluster in enumerate(unique_clusters)}
 
     return color_map
-
 
 # region Sentiment over time
 
