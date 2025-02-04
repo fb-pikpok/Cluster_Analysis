@@ -143,7 +143,7 @@ df_filtered = df_filtered[
 if "All Clusters" not in selected_clusters:
     df_filtered = df_filtered[df_filtered[clustering_name_column].isin(selected_clusters)]
 
-# (iii) Hide Noise (assuming "Unknown" is your noise cluster)
+# (iii) Hide Noise
 if hide_noise:
     df_filtered = df_filtered[df_filtered[clustering_name_column] != "Unknown"]
 
@@ -239,7 +239,7 @@ else:
         y="Count",
         color=clustering_name_column,
         line_dash="Sentiment",
-        # IMPORTANT: use the same color map you created from df_total
+        # IMPORTANT: use the same color map created from df_total
         color_discrete_map=full_color_map,
         title="Sentiment Over Time (Selected Clusters)",
         labels={
