@@ -14,7 +14,7 @@ st.set_page_config(layout="wide")
 
 # Define path to precomputed JSON file
 s_root = r'S:\SID\Analytics\Working Files\Individual\Florian\Projects\DataScience\cluster_analysis\Data/'           # Root
-s_project = r'HRC/'                                                      # Project
+s_project = r'HRC\Cluster_tests/'                                                      # Project
 #s_project = r'HRC/'                                                                     # Project
 s_db_table_preprocessed_json = os.path.join(s_root, s_project, 'db_final.json')          # Input data
 
@@ -64,7 +64,7 @@ def load_data(json_path):
 
     # Convert 'timestamp_created' to a datetime object and extract the month
     try:
-        df['timestamp_updated'] = pd.to_datetime(df['timestamp_updated'], unit='ms')  # Convert from milliseconds
+        df['timestamp_updated'] = pd.to_datetime(df['timestamp_updated'], unit='s')  # Convert from seconds
         df['month'] = df['timestamp_updated'].dt.to_period('M').astype(str)  # Convert to string for JSON serialization
     except:
         pass
@@ -123,11 +123,11 @@ selected_view = st.sidebar.radio("Select View", view_options)
 
 # region Cluster Selection
 if selected_clustering == "kmeans":
-    clustering_column = f"{selected_clustering}_{selected_kmeans_size}_{selected_dimensionality}_{selected_view}"
+    clustering_column = f"{selected_clustering}_{selected_kmeans_size}_id"
     clustering_name_column = f"{clustering_column}_name"
 else:
-    clustering_column = f"hdbscan_cluster_id"
-    clustering_name_column = f"hdbscan_cluster_name"
+    clustering_column = f"hdbscan_id"
+    clustering_name_column = f"hdbscan_id_name"
 
 
 
@@ -150,7 +150,7 @@ if hide_noise:
     if display_mode == "ID":
         filtered_df = filtered_df[filtered_df[clustering_column] != -1]
     else:
-        filtered_df = filtered_df[filtered_df[clustering_name_column] != "Unknown"]
+        filtered_df = filtered_df[filtered_df[clustering_name_column] != "Noise"]
 
 
 # Select individual clusters
