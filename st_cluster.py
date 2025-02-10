@@ -145,7 +145,7 @@ if "All Clusters" not in selected_clusters:
 
 # (iii) Hide Noise
 if hide_noise:
-    df_filtered = df_filtered[df_filtered[clustering_name_column] != "Unknown"]
+    df_filtered = df_filtered[df_filtered[clustering_name_column] != "Noise"]
 
 if df_filtered.empty:
     st.warning("No data available for the selected filters.")
