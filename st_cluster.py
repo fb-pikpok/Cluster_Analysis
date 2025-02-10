@@ -73,8 +73,8 @@ df_total = load_data(s_db_table_preprocessed_json)
 # 2) Generate a color map from the FULL dataset
 # ----------------------------------------------------------------------
 # This ensures that each cluster gets a consistent color even if it’s filtered out later.
-clustering_name_column = "cluster_name"
-clustering_column = "cluster_id"
+clustering_name_column = "hdbscan_id_name"
+clustering_column = "hdbscan_id"
 display_mode = "Name"
 
 # This is your custom function or logic that assigns colors.
