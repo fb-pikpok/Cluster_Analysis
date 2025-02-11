@@ -6,13 +6,6 @@ import json
 # Set page layout
 st.set_page_config(layout="wide")
 
-# Define path to precomputed JSON file
-s_root = r'S:\SID\Analytics\Working Files\Individual\Florian\Projects\DataScience\cluster_analysis\Data/'   # Root
-s_project = r'HRC\Cluster_tests/'                                                                            # Project
-s_db_table_preprocessed_json = os.path.join(s_root, s_project, 'db_final.json')                             # Input data
-
-# HRC topic embedding
-# S:\SID\Analytics\Working Files\Individual\Florian\Projects\DataScience\cluster_analysis\Data\RivalStars\Steam
 
 # Upload JSON file
 st.sidebar.header("Upload Your JSON File")
@@ -60,7 +53,7 @@ if uploaded_file is not None:
 
         return df
 
-    df_total = load_data(s_db_table_preprocessed_json)
+    df_total = load_data(uploaded_file)
 
 
     # region 1) Filters
