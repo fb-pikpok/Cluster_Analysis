@@ -1,18 +1,11 @@
-########################
-# visualisations.py
-########################
-
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
-
-
+import plotly.express as px
 
 # region Shared Helper Functions for Sentiment Counts
-
 def compute_sentiment_counts_by_cluster(df, cluster_col, sentiment_col="sentiment"):
     """
-    Computes positive and negative sentiment counts per cluster, ignoring all other sentiments.
+    Counts the number of Positive and Negative sentiments per cluster.
 
     Args:
         df (pd.DataFrame): Input DataFrame (already filtered if needed).
@@ -41,52 +34,59 @@ def compute_sentiment_counts_by_cluster(df, cluster_col, sentiment_col="sentimen
     return grouped[["Positive", "Negative"]]
 
 
-def compute_sentiment_over_time(df, time_col="timestamp_updated", cluster_col=None, granularity="M"):
+def aggregate_sentiment_over_time(
+    df,
+    time_col="timestamp_updated",
+    sentiment_col="sentiment",
+    cluster_col=None,
+    granularity="ME"
+):
     """
-    Aggregates sentiment counts (Positive, Negative) over time, optionally grouped by cluster.
+    Aggregates sentiment counts (Positive, Negative) over time, with optional cluster grouping.
+    Negative counts are stored as negative for diverging charts.
 
     Args:
-        df (pd.DataFrame): DataFrame with 'sentiment' and a datetime column.
-                           Should already be filtered for date range, clusters, etc.
-        time_col (str): Datetime-like column name. Defaults to 'timestamp_updated'.
-        cluster_col (str or None): If provided, group by cluster and time.
-                                   If None, aggregate all clusters together.
-        granularity (str): Pandas offset alias for resampling (e.g. 'M', 'W', 'D', 'H').
+        df (pd.DataFrame): Input data, already filtered as needed. Must contain 'sentiment' column.
+        time_col (str): Name of a datetime column. Defaults to 'timestamp_updated'.
+        sentiment_col (str): Name of the sentiment column (e.g., 'sentiment').
+        cluster_col (str or None): If None => single aggregated. Otherwise => group by cluster & time.
+        granularity (str): Pandas offset alias for resampling ('M', 'W', 'D', 'H', etc.).
 
     Returns:
-        pd.DataFrame:
-            - If cluster_col is None => columns: [time_col, positive_count, total_count, negative_count]
-            - If cluster_col is set => columns: [cluster_col, time_col, positive_count, total_count, negative_count]
-            negative_count is stored as negative integers to facilitate “diverging” plots.
-            Returns empty DataFrame if no Positive/Negative data.
+        pd.DataFrame: If cluster_col is None, columns = [time_col, positive_count, negative_count, total_count].
+                      Else, columns = [cluster_col, time_col, positive_count, negative_count, total_count].
+                      Returns empty if no Positive/Negative data.
     """
-    # Keep only Positive / Negative
-    df = df[df["sentiment"].isin(["Positive", "Negative"])].copy()
+    # Filter for Positive & Negative only
+    df = df[df[sentiment_col].isin(["Positive", "Negative"])].copy()
     if df.empty:
-        return pd.DataFrame()
+        return pd.DataFrame()  # nothing to aggregate
 
-    # Make sure time_col is the index for resampling
+    # Make sure the time_col is a proper datetime index
+    df[time_col] = pd.to_datetime(df[time_col], errors="coerce")
     df = df.set_index(time_col).sort_index()
 
-    # Numeric indicator: 1 if Positive, 0 otherwise
-    df["is_positive"] = (df["sentiment"] == "Positive").astype(int)
+    # Create a numeric indicator for positivity
+    df["is_positive"] = (df[sentiment_col] == "Positive").astype(int)
 
     # Group & resample
     if cluster_col:
         grouped = (
             df.groupby(cluster_col)
-              .resample(granularity)
-              .agg({"is_positive": ["sum", "count"]})
+              .resample(granularity)["is_positive"]
+              .agg(["sum", "count"])
+              .rename(columns={"sum": "positive_count", "count": "total_count"})
+              .reset_index()
         )
-        grouped.columns = ["positive_count", "total_count"]
-        grouped.reset_index(inplace=True)
     else:
-        # Single aggregated approach
-        grouped = df.resample(granularity).agg({"is_positive": ["sum", "count"]})
-        grouped.columns = ["positive_count", "total_count"]
-        grouped.reset_index(inplace=True)
+        grouped = (
+            df.resample(granularity)["is_positive"]
+              .agg(["sum", "count"])
+              .rename(columns={"sum": "positive_count", "count": "total_count"})
+              .reset_index()
+        )
 
-    # negative_count = total_count - positive_count (store as negative for diverging plots)
+    # negative_count = total_count - positive_count, stored negative for diverging
     grouped["negative_count"] = grouped["total_count"] - grouped["positive_count"]
     grouped["negative_count"] = -grouped["negative_count"]
 
@@ -113,18 +113,18 @@ def generate_color_map(dataframe, clustering_column, clustering_name_column, dis
         "crimson", "cyan", "darkblue", "darkcyan", "darkgoldenrod", "darkgray", "darkgrey", "darkgreen", "darkkhaki",
         "darkmagenta", "darkolivegreen", "darkorange", "darkorchid", "darkred", "darksalmon", "darkseagreen", "darkslateblue",
         "darkslategray", "darkslategrey", "darkturquoise", "darkviolet", "deeppink", "deepskyblue", "dimgray", "dimgrey",
-        "dodgerblue", "firebrick", "floralwhite", "forestgreen", "fuchsia", "gainsboro", "ghostwhite", "gold", "goldenrod",
+        "dodgerblue", "firebrick", "floralwhite", "forestgreen", "fuchsia", "gainsboro", "gold", "goldenrod",
         "gray", "grey", "green", "greenyellow", "honeydew", "hotpink", "indianred", "indigo", "ivory", "khaki", "lavender",
         "lavenderblush", "lawngreen", "lemonchiffon", "lightblue", "lightcoral", "lightcyan", "lightgoldenrodyellow",
-        "lightgray", "lightgrey", "lightgreen", "lightpink", "lightsalmon", "lightseagreen", "lightskyblue", "lightslategray",
+        "lightgreen", "lightpink", "lightsalmon", "lightseagreen", "lightskyblue", "lightslategray",
         "lightslategrey", "lightsteelblue", "lightyellow", "lime", "limegreen", "linen", "magenta", "maroon", "mediumaquamarine",
         "mediumblue", "mediumorchid", "mediumpurple", "mediumseagreen", "mediumslateblue", "mediumspringgreen", "mediumturquoise",
         "mediumvioletred", "midnightblue", "mintcream", "mistyrose", "moccasin", "navajowhite", "navy", "oldlace", "olive",
         "olivedrab", "orange", "orangered", "orchid", "palegoldenrod", "palegreen", "paleturquoise", "palevioletred",
         "papayawhip", "peachpuff", "peru", "pink", "plum", "powderblue", "purple", "red", "rosybrown", "royalblue",
-        "saddlebrown", "salmon", "sandybrown", "seagreen", "seashell", "sienna", "silver", "skyblue", "slateblue",
+        "saddlebrown", "salmon", "seagreen", "seashell", "sienna", "silver", "skyblue", "slateblue",
         "slategray", "slategrey", "snow", "springgreen", "steelblue", "tan", "teal", "thistle", "tomato", "turquoise",
-        "violet", "wheat", "white", "whitesmoke", "yellow", "yellowgreen"
+        "violet", "wheat", "yellow", "yellowgreen"
     ]
 
     if display_mode == "Name":
@@ -145,6 +145,63 @@ def generate_color_map(dataframe, clustering_column, clustering_name_column, dis
 
 # region Plotting Functions
 
+# Main Graph for Cluster Analysis
+def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None, color_map=None):
+    """
+    Visualize embeddings in 2D or 3D with consistent colors for clusters.
+
+    Args:
+        df (pd.DataFrame): Data with columns [x_col, y_col, z_col(optional), cluster].
+        x_col (str): x-axis column name.
+        y_col (str): y-axis column name.
+        z_col (str or None): z-axis column for 3D. If None => 2D.
+        review_text_column (str or None): If provided, included in hover data.
+        colour_by_column (str or None): The column for color-coding (e.g., cluster).
+        color_map (dict or None): Mapping cluster -> color.
+
+    Returns:
+        plotly.graph_objects.Figure
+    """
+    hover_data = {}
+    if review_text_column:
+        hover_data[review_text_column] = True
+    if 'topic' in df.columns:
+        hover_data['topic'] = True
+
+    if z_col:
+        fig = px.scatter_3d(
+            df,
+            x=x_col,
+            y=y_col,
+            z=z_col,
+            color=colour_by_column,
+            hover_data=hover_data,
+            color_discrete_map=color_map
+        )
+    else:
+        fig = px.scatter(
+            df,
+            x=x_col,
+            y=y_col,
+            color=colour_by_column,
+            hover_data=hover_data,
+            color_discrete_map=color_map
+        )
+
+    fig.update_layout(
+        legend_title_text=None,
+        height=600,
+        width=900,
+        title=f"Visualization of {x_col}, {y_col}" + (f", {z_col}" if z_col else ""),
+        xaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True),
+        yaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True)
+    )
+    fig.update_traces(marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey")))
+
+    return fig
+
+
+# Sentiment per Cluster (Bar Chart)
 def plot_sentiments(df, sentiment_col, cluster_name_col):
     """
     Creates a horizontal diverging bar chart (Positive vs Negative) per cluster.
@@ -200,124 +257,7 @@ def plot_sentiments(df, sentiment_col, cluster_name_col):
     return fig
 
 
-def plot_sentiments_over_time_line(aggregated_df, cluster_col=None, color_map=None, title="Time-based Sentiment Analysis"):
-    """
-    Builds a line chart (positive vs negative) over time using the result of compute_sentiment_over_time().
-
-    Args:
-        aggregated_df (pd.DataFrame): result of compute_sentiment_over_time()
-        cluster_col (str or None): if None => single aggregated line,
-                                   else => multiple lines by cluster
-        color_map (dict): mapping of cluster -> color
-        title (str): chart title
-
-    Returns:
-        plotly.graph_objects.Figure or None
-    """
-    if aggregated_df.empty:
-        return None
-
-    # Distinguish "all clusters" vs multi-cluster scenario
-    is_multi_cluster = (cluster_col is not None and cluster_col in aggregated_df.columns)
-
-    if not is_multi_cluster:
-        # Single aggregated approach => 2 lines total
-        plot_df = aggregated_df.melt(
-            id_vars=["timestamp_updated"],
-            value_vars=["positive_count", "negative_count"],
-            var_name="Sentiment",
-            value_name="Count"
-        )
-        fig = px.line(
-            plot_df,
-            x="timestamp_updated",
-            y="Count",
-            color="Sentiment",
-            title=title,
-            labels={
-                "timestamp_updated": "Time",
-                "Count": "Count (+ = Positive, - = Negative)"
-            }
-        )
-    else:
-        # Multi-cluster => group by cluster_col => 2 lines (pos & neg) per cluster
-        plot_df = aggregated_df.melt(
-            id_vars=[cluster_col, "timestamp_updated"],
-            value_vars=["positive_count", "negative_count"],
-            var_name="Sentiment",
-            value_name="Count"
-        )
-        fig = px.line(
-            plot_df,
-            x="timestamp_updated",
-            y="Count",
-            color=cluster_col,
-            line_dash="Sentiment",  # dashed line for negative
-            color_discrete_map=color_map if color_map else {},
-            title=title,
-            labels={
-                "timestamp_updated": "Time",
-                "Count": "Count (+ = Positive, - = Negative)",
-                cluster_col: "Cluster"
-            }
-        )
-
-    fig.update_layout(
-        yaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='gray')
-    )
-    return fig
-
-
-def plot_sentiments_over_time(df, sentiment_col, month_col):
-    """
-    Creates a diverging bar chart for Positive vs Negative sentiments over time (by 'month' or any period label).
-
-    Args:
-        df (pd.DataFrame): DataFrame containing sentiment & time-based column.
-        sentiment_col (str): Name of the sentiment column.
-        month_col (str): Name of a "time label" column (e.g., 'month').
-
-    Returns:
-        plotly.graph_objects.Figure
-    """
-    # Filter for positive & negative
-    sentiment_data = df[df[sentiment_col].isin(['Positive', 'Negative'])]
-    if sentiment_data.empty:
-        fig = go.Figure()
-        fig.update_layout(title="No Positive/Negative data for the specified time period.")
-        return fig
-
-    # Group by time label & sentiment
-    sentiment_counts = sentiment_data.groupby([month_col, sentiment_col]).size().unstack(fill_value=0)
-    sentiment_counts['Positive'] = sentiment_counts.get('Positive', 0)
-    sentiment_counts['Negative'] = -sentiment_counts.get('Negative', 0)
-
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=sentiment_counts.index.astype(str),  # e.g. converting PeriodIndex to string
-        y=sentiment_counts['Positive'],
-        name='Positive',
-        marker=dict(color='green')
-    ))
-    fig.add_trace(go.Bar(
-        x=sentiment_counts.index.astype(str),
-        y=sentiment_counts['Negative'],
-        name='Negative',
-        marker=dict(color='red')
-    ))
-
-    fig.update_layout(
-        title="Aggregated Bar Chart",
-        xaxis_title="Time",
-        yaxis_title="Sentiment Frequency",
-        barmode='relative',
-        showlegend=True,
-        xaxis=dict(showgrid=True, zeroline=True),
-        yaxis=dict(showgrid=False, zeroline=False)
-    )
-    return fig
-
-
+# Display cluster size (Bar Chart)
 def plot_request_count_by_cluster(df, cluster_name_col, data_type):
     """
     Creates a bar chart for the count of a specific category ('request', 'fact', or both) per cluster.
@@ -356,62 +296,192 @@ def plot_request_count_by_cluster(df, cluster_name_col, data_type):
     return fig
 
 
-def visualize_embeddings(df, x_col, y_col, z_col=None, review_text_column=None, colour_by_column=None, color_map=None):
+
+
+def plot_sentiment_over_time_bar(
+    aggregated_df,
+    cluster_col=None,
+    title="Aggregated Bar Chart"
+):
     """
-    Visualize embeddings in 2D or 3D with consistent colors for clusters.
+    Creates a diverging bar chart for Positive vs Negative sentiment over time.
+    If cluster_col is provided in aggregated_df, it will produce stacked groups by cluster.
 
     Args:
-        df (pd.DataFrame): Data with columns [x_col, y_col, z_col(optional), cluster].
-        x_col (str): x-axis column name.
-        y_col (str): y-axis column name.
-        z_col (str or None): z-axis column for 3D. If None => 2D.
-        review_text_column (str or None): If provided, included in hover data.
-        colour_by_column (str or None): The column for color-coding (e.g., cluster).
-        color_map (dict or None): Mapping cluster -> color.
+        aggregated_df (pd.DataFrame): Output of aggregate_sentiment_over_time.
+        cluster_col (str or None): If None => single aggregated approach.
+                                   If present => multiple clusters.
+        title (str): Chart title.
 
     Returns:
-        plotly.graph_objects.Figure
+        plotly.graph_objects.Figure or None
     """
-    hover_data = {}
-    if review_text_column:
-        hover_data[review_text_column] = True
-    if 'topic' in df.columns:
-        hover_data['topic'] = True
+    if aggregated_df.empty:
+        return None
 
-    if z_col:
-        fig = px.scatter_3d(
-            df,
-            x=x_col,
-            y=y_col,
-            z=z_col,
-            color=colour_by_column,
-            hover_data=hover_data,
-            color_discrete_map=color_map
+    # Distinguish single aggregated vs multi-cluster data
+    is_multi_cluster = cluster_col and (cluster_col in aggregated_df.columns)
+
+    # If single aggregated => We expect columns [timestamp_updated, positive_count, negative_count, total_count]
+    if not is_multi_cluster:
+        x_values = aggregated_df["timestamp_updated"]
+        pos_vals = aggregated_df["positive_count"]
+        neg_vals = aggregated_df["negative_count"]
+
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=x_values,
+            y=pos_vals,
+            name="Positive",
+            marker=dict(color="green")
+        ))
+        fig.add_trace(go.Bar(
+            x=x_values,
+            y=neg_vals,
+            name="Negative",
+            marker=dict(color="red")
+        ))
+
+        fig.update_layout(
+            title=title,
+            xaxis_title="Time",
+            yaxis_title="Sentiment Frequency (Positive/Negative)",
+            barmode='relative',  # diverging effect
+            showlegend=True
         )
+        return fig
+
     else:
-        fig = px.scatter(
-            df,
-            x=x_col,
-            y=y_col,
-            color=colour_by_column,
-            hover_data=hover_data,
-            color_discrete_map=color_map
+        # Multi-cluster => columns: [cluster_col, timestamp_updated, positive_count, negative_count, total_count]
+        # We'll pivot so each cluster is a separate group on the x-axis.
+        # Or we can create a stacked bar for each cluster over time.
+        # For simplicity, let's plot each time point grouped by cluster.
+
+        # Convert to wide form: index=[timestamp, cluster], columns=[positive_count, negative_count]
+        # Then we can create separate traces per cluster.
+        # Alternatively, we iterate row by row in a custom approach.
+
+        # We'll do a simpler approach: We'll meltdown, then manually create traces.
+        # Might be more straightforward to interpret as time on x-axis, total bars per cluster at each time.
+        # Each cluster has 2 stacked bars: positive, negative.
+
+        # Step 1: melt
+        melted = aggregated_df.melt(
+            id_vars=[cluster_col, "timestamp_updated"],
+            value_vars=["positive_count", "negative_count"],
+            var_name="Sentiment",
+            value_name="Count"
+        )
+
+        fig = go.Figure()
+
+        # We'll group by cluster and sentiment, then plot them for each time
+        for c_id, c_data in melted.groupby(cluster_col):
+            # c_data has "timestamp_updated", "Sentiment" (pos or neg), "Count"
+            # We'll separate pos/neg
+            c_data_pos = c_data[c_data["Sentiment"] == "positive_count"]
+            c_data_neg = c_data[c_data["Sentiment"] == "negative_count"]
+
+            fig.add_trace(go.Bar(
+                x=c_data_pos["timestamp_updated"],
+                y=c_data_pos["Count"],
+                name=f"{c_id} - Positive",
+                marker=dict(color="green")
+            ))
+            fig.add_trace(go.Bar(
+                x=c_data_neg["timestamp_updated"],
+                y=c_data_neg["Count"],
+                name=f"{c_id} - Negative",
+                marker=dict(color="red")
+            ))
+
+        fig.update_layout(
+            title=title,
+            xaxis_title="Time",
+            yaxis_title="Sentiment Frequency",
+            barmode='relative',  # diverging
+            showlegend=True
+        )
+        return fig
+
+
+
+def plot_sentiment_over_time_line(
+    aggregated_df,
+    cluster_col=None,
+    color_map=None,
+    title="Time-based Sentiment Analysis"
+):
+    """
+    Builds a line chart (positive vs negative) over time.
+    If cluster_col is None => single aggregated line, else multiple lines by cluster.
+
+    Args:
+        aggregated_df (pd.DataFrame): output of aggregate_sentiment_over_time()
+        cluster_col (str or None): if None => aggregated (2 lines). Else => multi-cluster
+        color_map (dict): cluster -> color
+        title (str): chart title
+
+    Returns:
+        plotly.graph_objects.Figure or None
+    """
+    if aggregated_df.empty:
+        return None
+
+    # Check single vs multi cluster
+    is_multi_cluster = (cluster_col is not None) and (cluster_col in aggregated_df.columns)
+
+    if not is_multi_cluster:
+        # Single aggregated => columns: [timestamp_updated, positive_count, negative_count, total_count]
+        plot_df = aggregated_df.melt(
+            id_vars=["timestamp_updated"],
+            value_vars=["positive_count", "negative_count"],
+            var_name="Sentiment",
+            value_name="Count"
+        )
+
+        fig = px.line(
+            plot_df,
+            x="timestamp_updated",
+            y="Count",
+            color="Sentiment",
+            title=title,
+            labels={
+                "timestamp_updated": "Time",
+                "Count": "Count (+ = Positive, - = Negative)"
+            }
+        )
+
+    else:
+        # Multi-cluster => columns: [cluster_col, timestamp_updated, positive_count, negative_count, total_count]
+        plot_df = aggregated_df.melt(
+            id_vars=[cluster_col, "timestamp_updated"],
+            value_vars=["positive_count", "negative_count"],
+            var_name="Sentiment",
+            value_name="Count"
+        )
+
+        fig = px.line(
+            plot_df,
+            x="timestamp_updated",
+            y="Count",
+            color=cluster_col,
+            line_dash="Sentiment",  # dashed line for negative
+            color_discrete_map=color_map if color_map else {},
+            title=title,
+            labels={
+                "timestamp_updated": "Time",
+                "Count": "Count (+ = Positive, - = Negative)",
+                cluster_col: "Cluster"
+            }
         )
 
     fig.update_layout(
-        legend_title_text=None,
-        height=600,
-        width=900,
-        title=f"Visualization of {x_col}, {y_col}" + (f", {z_col}" if z_col else ""),
-        xaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True),
-        yaxis=dict(title="", showgrid=True, zeroline=True, showticklabels=True)
+        yaxis=dict(zeroline=True, zerolinewidth=2, zerolinecolor='gray')
     )
-    fig.update_traces(marker=dict(size=6, line=dict(width=0.5, color="DarkSlateGrey")))
-
     return fig
 
 #endregion
-
 
 
 # region Here are the leftovers from previous versions of the color MAP

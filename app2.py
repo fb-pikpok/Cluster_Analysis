@@ -1,25 +1,14 @@
-import streamlit as st
-import pandas as pd
 import os
 from st_source.visuals import *
 from st_source.filter_functions import *
-from st_source.keywordSearch import initialize_miniLM, index_embedding, get_top_keyword_result
-from sklearn.metrics.pairwise import cosine_similarity
-import numpy as np
 import json
-
 
 # Set page layout
 st.set_page_config(layout="wide")
 
-
-
-# region 1) Page Setup & Load Data
-
 # Define path to precomputed JSON file
 s_root = r'S:\SID\Analytics\Working Files\Individual\Florian\Projects\DataScience\cluster_analysis\Data/'           # Root
 s_project = r'HRC\Cluster_tests/'                                                      # Project
-#s_project = r'HRC/'                                                                     # Project
 s_db_table_preprocessed_json = os.path.join(s_root, s_project, 'db_final.json')          # Input data
 
 @st.cache_data(show_spinner=False)
@@ -54,8 +43,7 @@ def load_data(json_path):
     except:
         pass
     try:
-        # Note: Adjust 'unit' if needed. Some data uses seconds, others milliseconds.
-        df['timestamp_updated'] = pd.to_datetime(df['timestamp_updated'], unit='s')
+        df['timestamp_updated'] = pd.to_datetime(df['timestamp_updated'], unit='s', errors="coerce")
         df['month'] = df['timestamp_updated'].dt.to_period('M').astype(str)
     except:
         pass
@@ -65,95 +53,165 @@ def load_data(json_path):
 
 df_total = load_data(s_db_table_preprocessed_json)
 
-# endregion
 
+# region 1) Filters
 
-# region 2) Sidebar Filters
+# Make a copy of the DataFrame to avoid modifying the original data
+filtered_df = df_total.copy()
 
 st.sidebar.header("Filter Options")
 
+#########################
+# 1. Expander: Display and Algorithm selection
+#########################
+with st.sidebar.expander("Display & Algorithm selection", expanded=False):
+    display_mode = st.selectbox("Display Mode", ["Name", "ID"])
 
-display_mode = st.sidebar.selectbox("Display Mode", ["ID", "Name"])
+    dimensionality_options = ["UMAP", "PCA", "tSNE"]
+    selected_dimensionality = st.selectbox("Dimensionality Reduction", dimensionality_options)
 
-dimensionality_options = ["UMAP", "PCA", "tSNE"]
-clustering_options = ["hdbscan", "kmeans"]
-selected_dimensionality = st.sidebar.selectbox("Dimensionality Reduction", dimensionality_options)
-selected_clustering = st.sidebar.selectbox("Clustering Algorithm", clustering_options)
+    clustering_options = ["hdbscan", "kmeans"]
+    selected_clustering = st.selectbox("Clustering Algorithm", clustering_options)
 
-hide_noise = st.sidebar.checkbox("Hide Noise", value=False)
-view_options = ["2D", "3D"]
-selected_view = st.sidebar.radio("Select View", view_options)
+    view_options = ["2D", "3D"]
+    selected_view = st.radio("Select View", view_options)
 
-# K-Means specific cluster-size selector
-# Since we don't know what the available cluster sizes are, this function checks them and returns them
-# so we can display them in the selector on the sidebar
-if selected_clustering == "kmeans":
-    kmeans_columns = [col for col in df_total.columns if col.startswith("kmeans_")]
-    if kmeans_columns:
-        available_kmeans_sizes = sorted({int(col.split("_")[1]) for col in kmeans_columns if col.split("_")[1].isdigit()})
-        selected_kmeans_size = st.sidebar.selectbox("Cluster size", options=available_kmeans_sizes)
+    # If KMeans is selected, allow user to choose the cluster size
+    # since we don't know what cluster sizes have been computed we generate a dynamic list of available sizes
+    # by checking the columns of the dataframe
+    if selected_clustering == "kmeans":
+        kmeans_cols = [c for c in df_total.columns if c.startswith("kmeans_")]
+        if kmeans_cols:
+            available_sizes = sorted({int(c.split("_")[1]) for c in kmeans_cols if c.split("_")[1].isdigit()})
+            selected_kmeans_size = st.selectbox("Cluster Size", options=available_sizes)
+        else:
+            selected_kmeans_size = st.number_input("Enter Number of KMeans Clusters", min_value=1, max_value=100, value=15, step=1)
+
+######
+# Cluster ID columns
+######
+# Determine the column where the cluster ID is stored based on user selection 'name' or 'ID'
+    if selected_clustering == "kmeans":
+        clustering_column = f"{selected_clustering}_{selected_kmeans_size}_id"
+        clustering_name_column = f"{clustering_column}_name"
     else:
-        selected_kmeans_size = st.sidebar.number_input(
-            "Enter Number of KMeans Clusters",
-            min_value=1, max_value=100, value=15, step=1
-        )
+        clustering_column = "hdbscan_id"
+        clustering_name_column = "hdbscan_id_name"
+
+#########################
+# Expander 2: Data Exploration
+#########################
+with st.sidebar.expander("Cluster Selection", expanded=False):
+    if display_mode == "Name":
+        all_clusters_list = sorted(df_total[clustering_name_column].dropna().unique())
+    else:
+        all_clusters_list = sorted(df_total[clustering_column].dropna().unique())
+
+    cluster_options = ["All Clusters"] + list(all_clusters_list)
+    selected_clusters = st.multiselect("Select Clusters (Multi-Select)", cluster_options, default=["All Clusters"])
+
+    hide_noise = st.checkbox("Hide Noise", value=False)
 
 
-if selected_clustering == "kmeans":
-    clustering_column = f"{selected_clustering}_{selected_kmeans_size}_id"
-    clustering_name_column = f"{clustering_column}_name"
-else:
-    clustering_column = "hdbscan_id"
-    clustering_name_column = "hdbscan_id_name"
+#########################
+# Expander 3: Time Filters
+#########################
 
-# Display by name or by ID (Name is initially selected)
-if display_mode == "Name":
-    all_clusters_list = sorted(df_total[clustering_name_column].dropna().unique().tolist())
-else:
-    all_clusters_list = sorted(df_total[clustering_column].dropna().unique().tolist())
+with st.sidebar.expander("Time Frame", expanded=False):
+    if not filtered_df.empty:
+        min_date = filtered_df["timestamp_updated"].min().date()
+        max_date = filtered_df["timestamp_updated"].max().date()
+
+        # By default, the date range is the entire dataset
+        start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+        end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+
+        # Only allow user inputs within the min and max date range
+        filtered_df = filtered_df[
+            (filtered_df["timestamp_updated"].dt.date >= start_date) &
+            (filtered_df["timestamp_updated"].dt.date <= end_date)
+        ]
+
+        if filtered_df.empty:
+            st.warning("No data available for the selected date range.")
+            st.stop()
+
+        granularity_options = {
+            "Days": "D",
+            "Weeks": "W",
+            "Months": "ME"
+        }
+        granularity_label = st.selectbox("Select Time Granularity", list(granularity_options.keys()), index=2)
+        selected_granularity = granularity_options[granularity_label]
+    else:
+        st.warning("No data left to apply Time Range filters.")
+        st.stop()
+
+##############################
+# 4) Expander: Optional Filters
+##############################
+with st.sidebar.expander("Additional Filters", expanded=False):
+    # Optional filters get dynamically created based on the current project.
+    # These filters are defined in the filter_functions.py file.
+    filtered_df = apply_optional_filters(filtered_df, container=st)
+
+    # Adjust the colums that are beein displayed in the data table
+    # Mandatory columns must be displayed
+    mandatory_columns = ["topic", "sentence", "category", "sentiment"]
+
+    # User can select via dropdown that is dynamically created based on the col names of the dataframe
+    optional_columns = [
+        c for c in df_total.columns
+        if c not in mandatory_columns
+           and c not in [clustering_column, clustering_name_column]
+    ]
+
+    selected_columns = st.multiselect(
+        "Select Additional Columns to Display",
+        options=optional_columns,
+        default=[]
+    )
+
+columns_to_display = mandatory_columns + selected_columns
 
 
-cluster_options = ["All Clusters"] + all_clusters_list
-selected_clusters = st.sidebar.multiselect(
-    "Select Clusters (Multi-Select)",
-    cluster_options,
-    default=["All Clusters"]
-)
-
-# endregion
-
-
-# region 3) Apply Additional Filters
-
-filtered_df = df_total.copy()
-
-# Apply optional sidebar filters (like sentiment, prestige, etc.)
-# (Assuming you have an apply_optional_filters function)
-filtered_df = apply_optional_filters(filtered_df)
-
-# Hide Noise
+#########################
+# Apply Filters
+#########################
 if hide_noise:
     if display_mode == "ID":
         filtered_df = filtered_df[filtered_df[clustering_column] != -1]
     else:
         filtered_df = filtered_df[filtered_df[clustering_name_column] != "Noise"]
 
-# Filter by selected cluster(s)
-# NEW OR CHANGED
+# Filter by selected clusters
 if "All Clusters" not in selected_clusters:
     if display_mode == "ID":
         filtered_df = filtered_df[filtered_df[clustering_column].isin(selected_clusters)]
     else:
         filtered_df = filtered_df[filtered_df[clustering_name_column].isin(selected_clusters)]
 
+if filtered_df.empty:
+    st.warning("No data available after applying all filters.")
+    st.stop()
+
+
+
 # endregion
 
 
+# region 2) Cluster Visualization
 
-# region 4) Cluster Visualization
+#####
+# Color Map
+#####
+# This color Map is used to ensure the same cluster has the same color across different visualizations / filters
+color_map = generate_color_map(df_total, clustering_column, clustering_name_column, display_mode)
 
-color_map = generate_color_map(df_total, clustering_column, clustering_name_column, display_mode)  # color map from full dataset
 
+#####
+# Cluster Visualization
+#####
 st.subheader("Cluster Visualization")
 if not filtered_df.empty:
     x_col = f"{selected_clustering}_{selected_dimensionality}_2D_x"
@@ -180,22 +238,11 @@ else:
 # endregion
 
 
-# region 5) Data Table
-mandatory_columns = ['topic', 'sentence', 'category', 'sentiment']
-optional_columns = [
-    col for col in df_total.columns
-    if col not in mandatory_columns
-    and col not in [clustering_column, clustering_name_column]
-]
+# region 3) Data Table
 
-selected_columns = st.sidebar.multiselect(
-    "Select Additional Columns to Display",
-    optional_columns,
-    default=[]
-)
 columns_to_display = mandatory_columns + selected_columns
 
-st.subheader("Filtered Data Table")
+st.subheader("Data Table")
 if not filtered_df.empty:
     st.dataframe(filtered_df[columns_to_display])
 else:
@@ -204,10 +251,15 @@ else:
 # endregion
 
 
-# region 6) Additional Charts
+# region 4) Sentiment per cluster and cluster Size
 
+#########################
 # Sentiment per Cluster
+#########################
 st.subheader("Sentiment per Cluster")
+
+# Horizontal bar chart for Sentiment per cluster
+# +x = green (positive), -x = red (negative)
 if not filtered_df.empty:
     fig_sentiment = plot_sentiments(
         filtered_df,
@@ -218,8 +270,14 @@ if not filtered_df.empty:
 else:
     st.warning("No sentiment data available for the selected filters.")
 
-# Cluster sizes
+
+#########################
+# Cluster Size (Bar Chart)
+#########################
 st.subheader("Requests per Cluster")
+
+# Determine the size of the cluster by number of facts, requests, or both
+# One vertical Bar represents the size of one cluster
 data_type = st.radio(
     "Select data to display:",
     options=["requests", "facts", "both"],
@@ -239,45 +297,53 @@ if not filtered_df.empty:
 else:
     st.warning("No request count data available for the selected filters.")
 
+# endregion
 
-# Bar Chart Sentiment Over Time
+
+# region 5) Sentiment Over Time
+#########################
+# Sentiment Over Time
+#########################
 st.subheader("Sentiment Over Time")
-try:
-    # Here we assume plot_sentiments_over_time handles any data subset
-    # If multiple clusters are selected, it aggregates them
-    fig_sentiment_time = plot_sentiments_over_time(
-        df=filtered_df,
-        sentiment_col='sentiment',
-        month_col='month'
-    )
-    st.plotly_chart(fig_sentiment_time)
-except:
-    st.warning("No data available for sentiment over time (bar).")
 
-
-# Line Chart Sentiment Over Time
+# Did the user select one or more specific clusters or all clusters?
 cluster_col = None
 if "All Clusters" not in selected_clusters:
-    # We have a cluster column
+    # Use whichever cluster column is relevant (ID or name)
     cluster_col = clustering_name_column if display_mode == "Name" else clustering_column
 
-aggregated_df = compute_sentiment_over_time(
-    df=filtered_df,
-    time_col="timestamp_updated",
-    cluster_col=cluster_col,           # None means single aggregated, otherwise multi-cluster
-    granularity="M"                    # or "W", "D", "H" etc.
-)
+# Did the user select a specific time range and granularity (e.g. days, weeks, months)?
+aggregated_data = aggregate_sentiment_over_time(df=filtered_df, time_col="timestamp_updated", sentiment_col="sentiment",
+                                                cluster_col=cluster_col, granularity=selected_granularity)
 
-fig_line = plot_sentiments_over_time_line(
-    aggregated_df=aggregated_df,
+
+######
+# Aggregated Bar Chart
+######
+fig_bar = plot_sentiment_over_time_bar(
+    aggregated_df=aggregated_data,
+    cluster_col=cluster_col,
+    title="Aggregated Bar Chart"
+)
+if fig_bar:
+    st.plotly_chart(fig_bar, use_container_width=True)
+else:
+    st.warning("No data available for time-based sentiment (Bar).")
+
+
+######
+# Individual Line Chart
+######
+fig_line = plot_sentiment_over_time_line(
+    aggregated_df=aggregated_data,
     cluster_col=cluster_col,
     color_map=color_map,
     title="Individual Line Chart"
 )
-
-if fig_line is not None:
+if fig_line:
     st.plotly_chart(fig_line, use_container_width=True)
 else:
-    st.warning("No data available for time-based sentiment analysis.")
+    st.warning("No data available for time-based sentiment (Line).")
 
+# endregion
 
