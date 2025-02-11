@@ -14,9 +14,8 @@ uploaded_file = st.sidebar.file_uploader("Choose a JSON file", type="json")
 
 if uploaded_file is not None:
     @st.cache_data(show_spinner=False)
-    def load_data(json_path):
-        with open(json_path, "r") as f:
-            data = json.load(f)
+    def load_data(file):
+        data = json.load(file)
         df = pd.DataFrame(data)
 
         # region Data Preprocessing
