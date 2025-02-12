@@ -99,7 +99,6 @@ Install the Community package of langchain
 
 ### Installation
 
-_Below is an example of how you can instruct your audience on installing and setting up your app. This template doesn't rely on any external dependencies or services._
 
 1. Request an API Key for [OpenAI API Key for OpenAI](https://platform.openai.com/api-keys)
 2. Clone the repo
@@ -125,14 +124,6 @@ _Below is an example of how you can instruct your audience on installing and set
     ```
 
 
-<!-- USAGE EXAMPLES -->
-## Usage
-
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
-
-_For more examples, please refer to the [Documentation](https://example.com)_
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 
