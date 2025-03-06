@@ -69,7 +69,7 @@ def apply_optional_filters(dataframe, container=st.sidebar):
             if filter_type == "slider":
                 if col == "playtime_at_review_minutes":
                     # Hard-coded slider range for playtime
-                    slider_min, slider_max = 0, 12000
+                    slider_min, slider_max = 0, 500
                     selected_filters[col] = container.slider(
                         description,
                         min_value=slider_min,
