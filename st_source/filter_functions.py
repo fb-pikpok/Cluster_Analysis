@@ -68,24 +68,56 @@ def apply_optional_filters(dataframe, container=st.sidebar):
 
             if filter_type == "slider":
                 if col == "playtime_at_review_minutes":
-                    # Hard-coded slider range for playtime
-                    slider_min, slider_max = 0, 500
-                    selected_filters[col] = container.slider(
-                        description,
-                        min_value=slider_min,
-                        max_value=slider_max,
-                        value=(slider_min, slider_max)
+                    # Hard-coded numeric range for playtime
+                    num_min, num_max = 0, 620
+
+                    # Lower boundary
+                    lower_bound = container.number_input(
+                        f"{description} (Min)",
+                        min_value=num_min,
+                        max_value=num_max,
+                        value=num_min,
+                        step=1
                     )
+
+                    # Upper boundary
+                    upper_bound = container.number_input(
+                        f"{description} (Max)",
+                        min_value=num_min,
+                        max_value=num_max,
+                        value=num_max,
+                        step=1
+                    )
+
+                    # Store as a tuple (lower_bound, upper_bound)
+                    selected_filters[col] = (lower_bound, upper_bound)
+
                 else:
-                    # Generic slider for numeric columns
+                    # Generic numeric columns
                     min_val = int(df_filtered[col].min())
                     max_val = int(df_filtered[col].max())
-                    selected_filters[col] = container.slider(
-                        description,
+
+                    # Lower boundary
+                    lower_bound = container.number_input(
+                        f"{description} (Min)",
                         min_value=min_val,
                         max_value=max_val,
-                        value=(min_val, max_val)
+                        value=min_val,
+                        step=1
                     )
+
+                    # Upper boundary
+                    upper_bound = container.number_input(
+                        f"{description} (Max)",
+                        min_value=min_val,
+                        max_value=max_val,
+                        value=max_val,
+                        step=1
+                    )
+
+                    # Store as a tuple (lower_bound, upper_bound)
+                    selected_filters[col] = (lower_bound, upper_bound)
+
 
             elif filter_type == "checkbox":
                 selected_filters[col] = container.checkbox(description, value=False)
