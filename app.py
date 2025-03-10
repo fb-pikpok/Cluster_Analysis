@@ -119,34 +119,51 @@ if uploaded_file is not None:
     #########################
 
     with st.sidebar.expander("Time Frame", expanded=False):
-        if not filtered_df.empty:
-            min_date = filtered_df["timestamp_updated"].min().date()
-            max_date = filtered_df["timestamp_updated"].max().date()
+        if "timestamp_updated" in filtered_df.columns:
+            # Proceed with time filtering only if the column exists
+            if not filtered_df.empty:
+                # Convert to datetime if it's not already
+                if not pd.api.types.is_datetime64_any_dtype(filtered_df["timestamp_updated"]):
+                    filtered_df["timestamp_updated"] = pd.to_datetime(
+                        filtered_df["timestamp_updated"], errors="coerce"
+                    )
+                # Ensure we still have valid datetimes
+                filtered_df = filtered_df.dropna(subset=["timestamp_updated"])
 
-            # By default, the date range is the entire dataset
-            start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
-            end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+                if filtered_df.empty:
+                    st.warning("No valid timestamps found after conversion.")
+                    st.stop()
 
-            # Only allow user inputs within the min and max date range
-            filtered_df = filtered_df[
-                (filtered_df["timestamp_updated"].dt.date >= start_date) &
-                (filtered_df["timestamp_updated"].dt.date <= end_date)
-            ]
+                # Now do the min/max to build the date filter range
+                min_date = filtered_df["timestamp_updated"].min().date()
+                max_date = filtered_df["timestamp_updated"].max().date()
 
-            if filtered_df.empty:
-                st.warning("No data available for the selected date range.")
+                start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+                end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+
+                # Filter accordingly
+                filtered_df = filtered_df[
+                    (filtered_df["timestamp_updated"].dt.date >= start_date) &
+                    (filtered_df["timestamp_updated"].dt.date <= end_date)
+                    ]
+
+                if filtered_df.empty:
+                    st.warning("No data available for the selected date range.")
+                    st.stop()
+
+                granularity_options = {
+                    "Days": "D",
+                    "Weeks": "W",
+                    "Months": "ME"
+                }
+                granularity_label = st.selectbox("Select Time Granularity", list(granularity_options.keys()), index=2)
+                selected_granularity = granularity_options[granularity_label]
+
+            else:
+                st.warning("No data left to apply Time Range filters.")
                 st.stop()
-
-            granularity_options = {
-                "Days": "D",
-                "Weeks": "W",
-                "Months": "ME"
-            }
-            granularity_label = st.selectbox("Select Time Granularity", list(granularity_options.keys()), index=2)
-            selected_granularity = granularity_options[granularity_label]
         else:
-            st.warning("No data left to apply Time Range filters.")
-            st.stop()
+            st.info("No 'timestamp_updated' column in your data, skipping time-based filter.")
 
     ##############################
     # 4) Expander: Optional Filters
@@ -302,49 +319,46 @@ if uploaded_file is not None:
 
 
     # region 5) Sentiment Over Time
-    #########################
-    # Sentiment Over Time
-    #########################
     st.subheader("Sentiment Over Time")
+    if "timestamp_updated" in filtered_df.columns and not filtered_df.empty:
+        # The user might have picked a cluster, etc.
+        cluster_col = None
+        if "All Clusters" not in selected_clusters:
+            cluster_col = clustering_name_column if display_mode == "Name" else clustering_column
 
-    # Did the user select one or more specific clusters or all clusters?
-    cluster_col = None
-    if "All Clusters" not in selected_clusters:
-        # Use whichever cluster column is relevant (ID or name)
-        cluster_col = clustering_name_column if display_mode == "Name" else clustering_column
+        aggregated_data = aggregate_sentiment_over_time(
+            df=filtered_df,
+            time_col="timestamp_updated",
+            sentiment_col="sentiment",
+            cluster_col=cluster_col,
+            granularity=selected_granularity
+        )
 
-    # Did the user select a specific time range and granularity (e.g. days, weeks, months)?
-    aggregated_data = aggregate_sentiment_over_time(df=filtered_df, time_col="timestamp_updated", sentiment_col="sentiment",
-                                                    cluster_col=cluster_col, granularity=selected_granularity)
+        # Plot bar
+        fig_bar = plot_sentiment_over_time_bar(
+            aggregated_df=aggregated_data,
+            cluster_col=cluster_col,
+            title="Aggregated Bar Chart"
+        )
+        if fig_bar:
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.warning("No data available for time-based sentiment (Bar).")
 
+        # Plot line
+        fig_line = plot_sentiment_over_time_line(
+            aggregated_df=aggregated_data,
+            cluster_col=cluster_col,
+            color_map=color_map,
+            title="Individual Line Chart"
+        )
+        if fig_line:
+            st.plotly_chart(fig_line, use_container_width=True)
+        else:
+            st.warning("No data available for time-based sentiment (Line).")
 
-    ######
-    # Aggregated Bar Chart
-    ######
-    fig_bar = plot_sentiment_over_time_bar(
-        aggregated_df=aggregated_data,
-        cluster_col=cluster_col,
-        title="Aggregated Bar Chart"
-    )
-    if fig_bar:
-        st.plotly_chart(fig_bar, use_container_width=True)
     else:
-        st.warning("No data available for time-based sentiment (Bar).")
-
-
-    ######
-    # Individual Line Chart
-    ######
-    fig_line = plot_sentiment_over_time_line(
-        aggregated_df=aggregated_data,
-        cluster_col=cluster_col,
-        color_map=color_map,
-        title="Individual Line Chart"
-    )
-    if fig_line:
-        st.plotly_chart(fig_line, use_container_width=True)
-    else:
-        st.warning("No data available for time-based sentiment (Line).")
+        st.info("No 'timestamp_updated' column or empty data – skipping time-based charts.")
 
     # endregion
 
