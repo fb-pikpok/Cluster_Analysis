@@ -43,11 +43,11 @@ if uploaded_file is not None:
             df['weighted_vote_score'] = pd.to_numeric(df['weighted_vote_score'], errors='coerce').fillna(0)
         except:
             pass
-        # try:
-        #     df['timestamp_updated'] = pd.to_datetime(df['timestamp_updated'], unit='s', errors="coerce")
-        #     df['month'] = df['timestamp_updated'].dt.to_period('M').astype(str)
-        # except:
-        #     pass
+        try:
+            df['timestamp_updated'] = pd.to_datetime(df['timestamp_updated'], unit='s', errors="coerce")
+            df['month'] = df['timestamp_updated'].dt.to_period('M').astype(str)
+        except:
+            pass
         # endregion
 
         return df
