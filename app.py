@@ -37,6 +37,9 @@ if uploaded_file is not None:
             pass
         try:
             df['playtime_at_review_minutes'] = df['author'].apply(lambda x: x.get('playtime_at_review_minutes', 0))
+            # Ensure all NaNs become 0 and cast to int (1 for nonzero values, else 0)
+            df['playtime_at_review_minutes'] = pd.to_numeric(df['playtime_at_review_minutes'], errors='coerce').fillna(
+                0).astype(int)
         except:
             pass
         try:
