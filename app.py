@@ -118,35 +118,35 @@ if uploaded_file is not None:
     # Expander 3: Time Filters
     #########################
 
-    with st.sidebar.expander("Time Frame", expanded=False):
-        if not filtered_df.empty:
-            min_date = filtered_df["timestamp_updated"].min().date()
-            max_date = filtered_df["timestamp_updated"].max().date()
-
-            # By default, the date range is the entire dataset
-            start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
-            end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
-
-            # Only allow user inputs within the min and max date range
-            filtered_df = filtered_df[
-                (filtered_df["timestamp_updated"].dt.date >= start_date) &
-                (filtered_df["timestamp_updated"].dt.date <= end_date)
-            ]
-
-            if filtered_df.empty:
-                st.warning("No data available for the selected date range.")
-                st.stop()
-
-            granularity_options = {
-                "Days": "D",
-                "Weeks": "W",
-                "Months": "ME"
-            }
-            granularity_label = st.selectbox("Select Time Granularity", list(granularity_options.keys()), index=2)
-            selected_granularity = granularity_options[granularity_label]
-        else:
-            st.warning("No data left to apply Time Range filters.")
-            st.stop()
+    # with st.sidebar.expander("Time Frame", expanded=False):
+    #     if not filtered_df.empty:
+    #         min_date = filtered_df["timestamp_updated"].min().date()
+    #         max_date = filtered_df["timestamp_updated"].max().date()
+    #
+    #         # By default, the date range is the entire dataset
+    #         start_date = st.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
+    #         end_date = st.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+    #
+    #         # Only allow user inputs within the min and max date range
+    #         filtered_df = filtered_df[
+    #             (filtered_df["timestamp_updated"].dt.date >= start_date) &
+    #             (filtered_df["timestamp_updated"].dt.date <= end_date)
+    #         ]
+    #
+    #         if filtered_df.empty:
+    #             st.warning("No data available for the selected date range.")
+    #             st.stop()
+    #
+    #         granularity_options = {
+    #             "Days": "D",
+    #             "Weeks": "W",
+    #             "Months": "ME"
+    #         }
+    #         granularity_label = st.selectbox("Select Time Granularity", list(granularity_options.keys()), index=2)
+    #         selected_granularity = granularity_options[granularity_label]
+    #     else:
+    #         st.warning("No data left to apply Time Range filters.")
+    #         st.stop()
 
     ##############################
     # 4) Expander: Optional Filters
