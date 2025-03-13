@@ -7,41 +7,41 @@ optional_filters = {
         "logic": lambda df, selected_values: df["sentiment"].isin(selected_values),
         "type": "multiselect"
     },
-    "prestige_rank": {
-        "description": "Prestige rank",
-        "logic": lambda df, min_val, max_val: (
-                (df["prestige_rank"] >= min_val) & (df["prestige_rank"] <= max_val)
-        ),
-        "type": "slider"
-    },
-    "spending": {
-        "description": "Only Show Spenders",
-        "logic": lambda df: df["spending"] > 0,
-        "type": "checkbox"
-    },
-    "is_current_subscriber": {
-        "description": "Only Show Current Subscribers",
-        "logic": lambda df: df["is_current_subscriber"] == 1,
-        "type": "checkbox"
-    },
-    "ever_been_subscriber": {
-        "description": "Only Show Previous Subscribers",
-        "logic": lambda df: df["ever_been_subscriber"] == 1,
-        "type": "checkbox"
-    },
-    "playtime_at_review_minutes": {
-        "description": "Playtime at Review (Minutes)",
-        "logic": lambda df, min_val, max_val: (
-                (df["playtime_at_review_minutes"] >= min_val)
-                & (df["playtime_at_review_minutes"] <= max_val if max_val < 12000 else True)
-        ),
-        "type": "slider"
-    },
-    "weighted_vote_score": {
-        "description": "Most Helpful Reviews",
-        "logic": lambda df: df["weighted_vote_score"] > 0.70,
-        "type": "checkbox"
-    }
+    # "prestige_rank": {
+    #     "description": "Prestige rank",
+    #     "logic": lambda df, min_val, max_val: (
+    #             (df["prestige_rank"] >= min_val) & (df["prestige_rank"] <= max_val)
+    #     ),
+    #     "type": "slider"
+    # },
+    # "spending": {
+    #     "description": "Only Show Spenders",
+    #     "logic": lambda df: df["spending"] > 0,
+    #     "type": "checkbox"
+    # },
+    # "is_current_subscriber": {
+    #     "description": "Only Show Current Subscribers",
+    #     "logic": lambda df: df["is_current_subscriber"] == 1,
+    #     "type": "checkbox"
+    # },
+    # "ever_been_subscriber": {
+    #     "description": "Only Show Previous Subscribers",
+    #     "logic": lambda df: df["ever_been_subscriber"] == 1,
+    #     "type": "checkbox"
+    # },
+    # "playtime_at_review_minutes": {
+    #     "description": "Playtime at Review (Minutes)",
+    #     "logic": lambda df, min_val, max_val: (
+    #             (df["playtime_at_review_minutes"] >= min_val)
+    #             & (df["playtime_at_review_minutes"] <= max_val if max_val < 12000 else True)
+    #     ),
+    #     "type": "slider"
+    # },
+    # "weighted_vote_score": {
+    #     "description": "Most Helpful Reviews",
+    #     "logic": lambda df: df["weighted_vote_score"] > 0.70,
+    #     "type": "checkbox"
+    # }
 }
 
 

@@ -174,7 +174,7 @@ if uploaded_file is not None:
     with st.sidebar.expander("Additional Filters", expanded=False):
         # Optional filters get dynamically created based on the current project.
         # These filters are defined in the filter_functions.py file.
-        #filtered_df = apply_optional_filters(filtered_df, container=st)
+        filtered_df = apply_optional_filters(filtered_df, container=st)
 
         # Adjust the colums that are beein displayed in the data table
         # Mandatory columns must be displayed
