@@ -304,13 +304,53 @@ TOPICS:
 '''
 )
 
+prompt_template_summary = PromptTemplate.from_template(
+'''
+cluster_name
+You are analysing player statements for our video game {video_game}. This is the cluster where you should analyse the player statements:
+{sentiment_distribution}
+Provide a concise summary where you name any major themes or issues that stand out.
+List the key insights, concerns or praises in this cluster as **bullet points** below.
 
-# prompt_template_cluster_naming = (
-# '''Based on the following topics, generate a concise name (5 words or fewer) that best describes the general theme of this cluster.
-#
-# TOPICS: {topics}
-# CLUSTER NAME: '''
-# )
+Here are the player statements in that cluster:
+
+{statements}
+'''
+)
+
+prompt_template_summary_short = PromptTemplate.from_template(
+    """
+You are analyzing player statements for our video game {video_game}.
+Below are the player statements from the cluster: {cluster_name}.
+
+Please provide a **brief summary** of one or two sentences that captures the main idea of these statements:
+{statements}
+"""
+)
+
+prompt_template_pain_points = PromptTemplate.from_template(
+    """
+You are analyzing player statements for our video game {video_game}.
+Below are the player statements from the cluster: {cluster_name}.
+
+Your task is to identify the biggest **pain points** (complaints or issues) mentioned by players.
+Provide them as **bullet points**. Only list frequent or significant pain points (maximum 3).
+If you cant identify any pain points just write "No issues mentioned".
+{statements}
+"""
+)
+
+prompt_template_highlights = PromptTemplate.from_template(
+    """
+You are analyzing player statements for our video game {video_game}.
+Below are the player statements from the cluster: {cluster_name}.
+
+Your task is to identify the **biggest strengths** (praises or well perceived aspects) mentioned by players.
+Provide them as **bullet points**. Only list frequent or significant strengths (maximum 3).
+If you cant identify any highlights just write "No strengths mentioned".
+{statements}
+"""
+)
 
 prompt_template_cluster_naming = (
 '''Based on the following topics, generate a concise name (5 words or fewer) that best describes the general theme of this cluster.
