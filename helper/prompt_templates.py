@@ -323,7 +323,7 @@ prompt_template_summary_short = PromptTemplate.from_template(
 You are analyzing player statements for our video game {video_game}.
 Below are the player statements from the cluster: {cluster_name}.
 
-Please provide a **brief summary** of one or two sentences that captures the main idea of these statements:
+Please provide a short summary (2-3 sentences) that captures the main topics of those statements:
 {statements}
 """
 )
@@ -351,6 +351,21 @@ If you cant identify any highlights just write "No strengths mentioned".
 {statements}
 """
 )
+
+prompt_template_top5 = PromptTemplate.from_template(
+    """
+You are analyzing player statements for our video game {video_game}.
+Below are the player statements from the {cluster_group} clusters.
+
+Your task is to identify the the main {sentiment} topics in the statements. Give a brief summary about them in 2-3 sentences.
+Here are the player statements:
+
+{statements}
+"""
+)
+
+
+
 
 prompt_template_cluster_naming = (
 '''Based on the following topics, generate a concise name (5 words or fewer) that best describes the general theme of this cluster.
