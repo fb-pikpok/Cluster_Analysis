@@ -6,8 +6,9 @@ import pandas as pd
 from helper.utils import configure_api, logger
 from helper.redshift_conector_standalone import fetch_query_results, logger, save_to_json
 from helper.data_analysis import normalize_topics_key, process_entry, api_settings
-from helper.data_analysis import read_json, detect_language_in_dataframe, translate_reviews
+from helper.data_analysis import read_json, translate_reviews
 from helper.prompt_templates import prompt_template_topic, prompt_template_sentiment
+from helper.embedding import get_embedding, get_offline_embedding, process_embedding, flatten_data
 
 
 def gather_data(root_dir, data_source,
@@ -44,32 +45,27 @@ def translate_data(root_dir, data_source, language_column):
     # Get Language Tag
     data = read_json(path_db_prepared)
     df = pd.DataFrame(data)
-    df = detect_language_in_dataframe(df,
-                                      text_column="pp_review",          # which colum to use for language detection
-                                      language_column=language_column)  # which column to store the detected language
 
     # Translate the data
-    df = translate_reviews(df,
-                           path_db_translated,                   # checks what & if data is already translated (backup)
-                           id_column="pp_review_id",             # column with unique identifier
-                           text_column="pp_review",
-                           language_column=language_column)      # column with language tag
+    translate_reviews(df,
+                      path_db_translated,                   # checks what & if data is already translated (backup)
+                      id_column="pp_review_id",             # column with unique identifier
+                      text_column="pp_review",
+                      language_column=language_column)      # column with language tag
 
 
-def analyse_data(root_dir, data_source, client, chat_model_name):
+def analyse_data(root_dir, data_source):
     path_db_translated = os.path.join(root_dir, data_source, "db_translated.json")
     path_db_analysed = os.path.join(root_dir, data_source, "db_analysed.json")
 
-    # Configure API
-    configure_api(client, chat_model_name)
 
-    # currently we store the data sometimes as dataframe and sometimes as JSON. This should be unified at some point.
+    # TODO: currently we store the data sometimes as dataframe and sometimes as JSON. This should be unified at some point.
     # For now, we will simply transform the pandas dataframe into a JSON object.
     data = pd.read_pickle(path_db_translated)
     data_prepared = data.to_dict(orient='records')
 
     id_column = "pp_review_id"  # The column that contains unique identifiers
-    columns_of_interest = ["pp_review"]  # The column(s) that are going to be analyzed
+    columns_of_interest = "pp_review"  # The column that are going to be analyzed
     all_entries = []
     processed_ids = set()
 
@@ -106,56 +102,18 @@ def analyse_data(root_dir, data_source, client, chat_model_name):
 
     # Final save after the loop
     save_to_json(all_entries, path_db_analysed)
-    logger.info("All entries processed and final results saved.")
+    logger.info(f"###### All entries have been analysed and final results saved. ###### {os.linesep}")
 
 
-def embed_data(root_dir, data_source, client, embed_key):
+def embed_data(root_dir, data_source, embed_key):
     path_db_analysed = os.path.join(root_dir, data_source, "db_analysed.json")
     path_db_embedded = os.path.join(root_dir, data_source, "db_embedded.json")
 
-    def get_embedding(text, model="text-embedding-3-small"):
-        text = text.replace("\n", " ")
-        embedding = client.embeddings.create(input=[text], model=model).data[0].embedding
-        return embedding
-
-    from llama_index.embeddings.langchain import LangchainEmbedding
-    from langchain.embeddings import HuggingFaceEmbeddings
-
-    embed_model = LangchainEmbedding(HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
-    def get_offline_embedding(text):
-        text = text.encode(encoding="ASCII", errors="ignore").decode()
-        return embed_model.get_text_embedding(text)
-
-
     data = read_json(path_db_analysed)
 
-    def process_embedding(data, embed_key):
-        for i in range(0, len(data)):
-            if i % 10 == 0:
-                logger.info(f"Processing entry {i}")
-
-            for d_topic in data[i]["topics"]:
-                if isinstance(d_topic, dict):
-                    d_topic["embedding"] = get_embedding(d_topic[embed_key], model="text-embedding-3-small")
-                    # d_topic["embedding"] = get_offline_embedding(d_topic[embed_key])
-        return data
-
     data_embedded = process_embedding(data, embed_key)
-
-    # Flatten
-    def flatten_data(data):
-        flattened = []
-        for entry in data:
-            base_copy = dict(entry)
-            topics = base_copy.pop("topics", [])
-
-            for topic in topics:
-                new_entry = dict(base_copy)
-                new_entry.update(topic)
-                flattened.append(new_entry)
-        return flattened
-
     data_flattened = flatten_data(data_embedded)
+    #TODO: When Data is flattened, create an ID for each entry => pp_statement_id (pp_review_id + counter?)
 
     # Save the embedded data
     save_to_json(data_flattened, path_db_embedded)

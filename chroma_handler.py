@@ -322,7 +322,7 @@ def prepare_dataframe_test(
 
 if __name__ == "__main__":
     # Adjust path and collection name as needed
-    input_path = r'S:\SID\Analytics\Working Files\Individual\Florian\Projects\DataScience\cluster_analysis\Data\Backup\Google Play\db_embedded.json'
+    input_path = r'/Data/HRC/Google Play\db_embedded.json'
     collection_name = "TestBVBb"
     persist_dir = "S:\SID\Analytics\Working Files\Individual\Florian\Projects\semantic_search\Data\ChromaDB"  # folder name for storing the persistent DB
 
