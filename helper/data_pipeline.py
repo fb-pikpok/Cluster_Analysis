@@ -74,13 +74,14 @@ def analyse_data(root_dir, data_source):
         all_entries = read_json(path_db_analysed)
         processed_ids = {entry[id_column] for entry in all_entries}  # set for O(1) membership checks
 
+    print(type(data_prepared))
     # Process all unprocessed entries
     for i, entry in enumerate(data_prepared):
         current_id = entry[id_column]
 
         # If we've already processed this entry, skip it
         if current_id in processed_ids:
-            logger.info(f"Skipping entry {i} (ID: {current_id}) - already processed.")
+            logger.info(f"Skipping entry {i} (ID: {current_id}) - already analysed.")
             continue
 
         # Otherwise, process and append
@@ -110,10 +111,38 @@ def embed_data(root_dir, data_source, embed_key):
     path_db_embedded = os.path.join(root_dir, data_source, "db_embedded.json")
 
     data = read_json(path_db_analysed)
+    print(type(data))
 
-    data_embedded = process_embedding(data, embed_key)
-    data_flattened = flatten_data(data_embedded)
-    #TODO: When Data is flattened, create an ID for each entry => pp_statement_id (pp_review_id + counter?)
+    all_entries = []
+    processed_ids = set()
+    id_column = "pp_review_id"
+
+    # If the embedding file already exists, load it
+    if os.path.exists(path_db_embedded):
+        all_entries = read_json(path_db_embedded)
+        processed_ids = {entry[id_column] for entry in all_entries}  # set for O(1) membership checks
+
+    # Process all unprocessed entries
+    for i, entry in enumerate(data):
+        current_id = entry[id_column]
+        # If we've already processed this entry, skip it
+        if current_id in processed_ids:
+            logger.info(f"Skipping entry {i} (ID: {current_id}) - already embedded.")
+            continue
+
+        logger.info(f"Processing entry {i} with ID {entry[id_column]}")
+        process_embedding(entry, id_column, embed_key)
+        all_entries.append(entry)
+        processed_ids.add(current_id)
+
+        # Save intermediate progress every 10 entries
+        if (i % 10) == 0 and i != 0:
+            save_to_json(all_entries, path_db_embedded)
+            logger.info(f"Progress saved at index {i}.")
+
 
     # Save the embedded data
-    save_to_json(data_flattened, path_db_embedded)
+    save_to_json(all_entries, path_db_embedded)
+    logger.info(f"###### All entries have been embedded and are stored. ###### {os.linesep}")
+
+
