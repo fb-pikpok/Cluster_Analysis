@@ -10,13 +10,14 @@ logger = logging.getLogger(__name__)
 
 def get_embedding(text, model="text-embedding-3-small"):
     text = text.replace("\n", " ")
-    embedding = api_settings['client'].embeddings.create(input=[text], model=model).data[0].embedding
+    response = api_settings['client'].embeddings.create(input=[text], model=model)
+    embedding = response.data[0].embedding
     return embedding
 
 # Load offline model when necessary
 # embed_model = LangchainEmbedding(HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2"))
-#
-#
+
+
 def get_offline_embedding(text):
     text = text.encode(encoding="ASCII", errors="ignore").decode()
     return embed_model.get_text_embedding(text)

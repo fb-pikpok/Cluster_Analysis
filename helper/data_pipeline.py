@@ -74,7 +74,6 @@ def analyse_data(root_dir, data_source):
         all_entries = read_json(path_db_analysed)
         processed_ids = {entry[id_column] for entry in all_entries}  # set for O(1) membership checks
 
-    print(type(data_prepared))
     # Process all unprocessed entries
     for i, entry in enumerate(data_prepared):
         current_id = entry[id_column]
@@ -111,7 +110,6 @@ def embed_data(root_dir, data_source, embed_key):
     path_db_embedded = os.path.join(root_dir, data_source, "db_embedded.json")
 
     data = read_json(path_db_analysed)
-    print(type(data))
 
     all_entries = []
     processed_ids = set()

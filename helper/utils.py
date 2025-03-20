@@ -3,6 +3,14 @@ import json
 import random
 import numpy as np
 import pandas as pd
+import openai
+
+# environment variables
+from dotenv import dotenv_values
+import os
+d = dotenv_values()
+for k in d.keys():
+    os.environ[k] = d[k]
 
 # Setup the logger
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -14,24 +22,22 @@ logging.getLogger("httpx").setLevel(logging.ERROR)      # Supress API HTTP reque
 # region API
 api_settings = {"client": None, "model": None}
 
-def configure_api(api_client, model_name):
+def configure_api(model_name):
     """
     Configures the global API client and model.
     Args:
-        api_client: The initialized OpenAI client.
         model_name (str): The model name to use.
     """
     global api_settings
-    api_settings["client"] = api_client
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    api_settings["client"] = openai.Client()
     api_settings["model"] = model_name
-
 # endregion
 
 # region Readers and Writers
 def save_to_json(data, output_path):
     """
     Saves data to a JSON file with proper encoding.
-
     Args:
         data (list): Data to save.
         output_path (str): Path to the output JSON file.
