@@ -8,7 +8,6 @@ from sklearn.manifold import TSNE
 from sklearn.metrics.pairwise import cosine_distances
 
 import logging
- # so we can use chromadb.PersistentClient
 
 from helper.cluster_naming import generate_cluster_name
 from helper.chroma_handler import query_chroma
@@ -237,7 +236,6 @@ def main():
     # -------------------------------
     # FILTER by language
     # -------------------------------
-
     enable_language = st.checkbox("Filter by Language?", value=False)
     language_value = []
 
@@ -432,9 +430,6 @@ def main():
         #for testing purposes apply some mutations so the other streamlit app can handle the data
         final_df = df_named.copy()
         final_df.rename(columns={"x": "hdbscan_UMAP_2D_x", "y": "hdbscan_UMAP_2D_y"}, inplace=True)
-        # populate all google play entries with a number between 10 and 1000 for the playtime in minutes
-        # final_df.loc[final_df['pp_data_source'] == 'Google Play', 'playtime_at_review_minutes'] = np.random.randint(10, 1000, len(final_df[final_df['pp_data_source'] == 'Google Play']))
-
 
 
         json_str = final_df.to_json(orient="records")
