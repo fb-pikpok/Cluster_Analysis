@@ -7,23 +7,18 @@ import plotly.express as px
 from sklearn.manifold import TSNE
 from sklearn.metrics.pairwise import cosine_distances
 
-import logging
-
-from helper.cluster_naming import generate_cluster_name
 from helper.chroma_handler import query_chroma
-from helper.utils import configure_api
+from helper.utils import configure_api, logger, api_settings
+from helper.cluster_naming import name_clusters
 
 openai_embedding_model = "text-embedding-3-small"
+openai_llm = "gpt-4o-mini"
 configure_api(model_name=openai_embedding_model)
 
 # -----------------------------------------------------------------------------
 # 0) Initial Setup & Logging
 # -----------------------------------------------------------------------------
 st.set_page_config(layout="wide")  # wide layout
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
-logging.getLogger("httpx").setLevel(logging.ERROR)
-
 
 # collection_name = 'HRC_multi_source'
 # persist_path = r'S:\SID\Analytics\Working Files\Individual\Florian\Projects\semantic_search\Database\ChromaDB'
@@ -59,8 +54,8 @@ def cluster_and_reduce(df: pd.DataFrame,
 
     reducer = umap.UMAP(n_components=2)
     coords_2d = reducer.fit_transform(mat)
-    df["x"] = coords_2d[:, 0]
-    df["y"] = coords_2d[:, 1]
+    df["hdbscan_UMAP_2D_x"] = coords_2d[:, 0]
+    df["hdbscan_UMAP_2D_y"] = coords_2d[:, 1]
 
     # 3) t-SNE Dimensionality Reduction
     tsne = TSNE(n_components=2, init='pca')
@@ -69,44 +64,6 @@ def cluster_and_reduce(df: pd.DataFrame,
     df["hdbscan_tSNE_2D_y"] = coords_tsne[:, 1]
 
     return df
-
-
-
-def name_clusters(df: pd.DataFrame,
-                  cluster_col: str = "hdbscan_id",
-                  embedding_col: str = "embedding",
-                  text_col: str = "document",
-                  top_k: int = 10,
-                  skip_noise_label: int = -1) -> pd.DataFrame:
-    df_out = df.copy()
-    unique_ids = df_out[cluster_col].unique()
-    cluster_id_to_name = {}
-
-    for c_id in unique_ids:
-        # Optionally skip noise
-        if skip_noise_label is not None and c_id == skip_noise_label:
-            continue
-
-        cluster_data = df_out[df_out[cluster_col] == c_id]
-        if cluster_data.empty:
-            continue
-
-        # compute centroid
-        embeddings = np.array(cluster_data[embedding_col].tolist())
-        centroid = embeddings.mean(axis=0, keepdims=True)
-
-        # find top_k closest
-        dists = cosine_distances(centroid, embeddings).flatten()
-        top_indices = np.argsort(dists)[:top_k]
-        representative_texts = cluster_data.iloc[top_indices][text_col].tolist()
-
-        # LLM or rule-based name generation
-        cluster_name = generate_cluster_name(representative_texts)
-        cluster_id_to_name[c_id] = cluster_name
-
-    name_col = f"{cluster_col}_name"
-    df_out[name_col] = df_out[cluster_col].apply(lambda cid: cluster_id_to_name.get(cid, "Noise"))
-    return df_out
 
 
 def assemble_where_filters(
@@ -368,8 +325,8 @@ def main():
             with col5:
                 fig = px.scatter(
                     df_clustered,
-                    x="x",
-                    y="y",
+                    x="hdbscan_UMAP_2D_x",
+                    y="hdbscan_UMAP_2D_y",
                     # Instead of color="hdbscan_id", pass the categorical version:
                     color=df_clustered["hdbscan_id"].astype("category"),
                     hover_data=["hdbscan_id", "document"],
@@ -398,7 +355,8 @@ def main():
                     embedding_col="embedding",
                     text_col="document",
                     top_k=10,
-                    skip_noise_label=-1
+                    skip_noise_label=-1,
+                    openai_llm = openai_llm
                 )
             st.session_state["df_clustered"] = df_named
             st.session_state["name_done"] = True
@@ -410,7 +368,7 @@ def main():
         with col7:
             fig2 = px.scatter(
                 df_named,
-                x="x", y="y",
+                x="hdbscan_UMAP_2D_x", y="hdbscan_UMAP_2D_y",
                 color="hdbscan_id_name",
                 hover_data=["hdbscan_id_name", "document"],
                 width=800, height=600
@@ -425,12 +383,7 @@ def main():
         # Download JSON
         st.markdown("---")
         st.info("All steps done! You can now download the final DataFrame below:")
-
-
-        #for testing purposes apply some mutations so the other streamlit app can handle the data
         final_df = df_named.copy()
-        final_df.rename(columns={"x": "hdbscan_UMAP_2D_x", "y": "hdbscan_UMAP_2D_y"}, inplace=True)
-
 
         json_str = final_df.to_json(orient="records")
         st.download_button(
