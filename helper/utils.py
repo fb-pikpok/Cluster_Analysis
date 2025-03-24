@@ -18,6 +18,17 @@ logger = logging.getLogger(__name__)
 
 logging.getLogger("httpx").setLevel(logging.ERROR)      # Supress API HTTP request logs
 
+# Initialize global token counters
+prompt_tokens = 0
+completion_tokens = 0
+
+def track_tokens(response):
+    """
+    Track Tokens when OpenAI API is used.
+    """
+    global prompt_tokens, completion_tokens
+    prompt_tokens += response.usage.prompt_tokens
+    completion_tokens += response.usage.completion_tokens
 
 # region API
 api_settings = {"client": None, "model": None}

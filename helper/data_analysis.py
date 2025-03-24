@@ -6,26 +6,9 @@ from lingua import Language, LanguageDetectorBuilder
 from helper.utils import *
 from helper.prompt_templates import *
 
-
-# Initialize global token counters
-prompt_tokens = 0
-completion_tokens = 0
-
-def track_tokens(response):
-    """
-    Updates the global token counters based on the API response.
-
-    Args:
-        response: The API response containing token usage.
-    """
-    global prompt_tokens, completion_tokens
-    prompt_tokens += response.usage.prompt_tokens
-    completion_tokens += response.usage.completion_tokens
-
 # region Translation
-
 # Initialize language detector
-# The detector works faster with fewer languages, if major ones are missing you can add them here
+    # The detector works faster with fewer languages, if major ones are missing you can add them here
 detector = LanguageDetectorBuilder.from_languages(
     Language.ENGLISH, Language.SPANISH, Language.CHINESE, Language.GERMAN, Language.FRENCH, Language.PORTUGUESE, Language.ARABIC, Language.RUSSIAN
 ).build()
@@ -121,7 +104,6 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
     logger.info(f"###### Translation completed. Total reviews translated: {num_translated} ######{os.linesep}")
 
     return updated_df
-
 # endregion
 
 

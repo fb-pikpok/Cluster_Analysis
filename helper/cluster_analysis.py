@@ -7,11 +7,9 @@ from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
 import umap
 import hdbscan
-import logging
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
-logger = logging.getLogger(__name__)
+from helper.utils import logger
+
 
 def load_embedded_data(json_path):
     """
@@ -184,37 +182,3 @@ def apply_kmeans(
 
     return df
 
-
-if __name__ == "__main__":
-    # Paths
-    s_root = r"C:\Users\fbohm\Desktop\Projects\DataScience\cluster_analysis"
-    input_file = os.path.join(s_root, "Data", "db_embedded_table.json")
-    output_file = os.path.join(s_root, "Data", "db_clustered.json")
-
-    # Adjustable parameters
-    dimensionality_methods = ['UMAP', 'PCA', 'tSNE']  # Dimensionality reduction methods
-    kmeans_clusters = [5, 10, 15]  # Number of clusters for KMeans
-    kmeans_seed = 42  # Seed for reproducibility
-    include_2d = True  # Whether to include 2D results
-    include_3d = True  # Whether to include 3D results
-    hdbscan_params = {"min_cluster_size": 5, "min_samples": 3, "cluster_selection_epsilon": 0.2}  # HDBSCAN params
-
-    # t-SNE specific parameter
-    perplexity = 15  # Set to a default or user-defined value
-
-    # Load data
-    df_total = load_embedded_data(input_file)
-    mat = np.array(df_total['embedding'].tolist())
-
-    # Apply dimensionality reduction and clustering
-    apply_clustering(
-        df_total,
-        mat,
-        dimensionality_methods,
-        kmeans_clusters,
-        output_file,
-        hdbscan_params=hdbscan_params,
-        kmeans_seed=kmeans_seed,
-        include_2d=include_2d,
-        include_3d=include_3d
-    )

@@ -1,25 +1,7 @@
 import pandas as pd
-from helper.utils import api_settings, logger
+from helper.utils import api_settings, logger, track_tokens, prompt_tokens, completion_tokens
 from helper.prompt_templates import prompt_template_top5, prompt_template_summary_short
 import random
-
-
-
-# Initialize global token counters
-prompt_tokens = 0
-completion_tokens = 0
-
-def track_tokens(response):
-    """
-    Updates the global token counters based on the API response.
-
-    Args:
-        response: The API response containing token usage.
-    """
-    global prompt_tokens, completion_tokens
-    prompt_tokens += response.usage.prompt_tokens
-    completion_tokens += response.usage.completion_tokens
-
 
 def generate_hard_facts(df):
     """
@@ -200,8 +182,6 @@ def generate_cluster_report(
             logger.error(f"Error summarizing cluster {cluster_name}: {e}")
             return {"error": str(e)}
 
-
-
         # ---------------------------------------------------
         # 2c) Append the summary to the Markdown
         # ---------------------------------------------------
@@ -217,14 +197,6 @@ def generate_cluster_report(
     return markdown_report
 
 
-def track_tokens(response):
-    """
-    Updates the global token counters based on the API response.
-    """
-    global prompt_tokens, completion_tokens
-    prompt_tokens += response.usage.prompt_tokens
-    completion_tokens += response.usage.completion_tokens
-
 def generate_big_picture_summary(df: pd.DataFrame,
                                  project: str) -> str:
     """
@@ -236,9 +208,6 @@ def generate_big_picture_summary(df: pd.DataFrame,
     Instead, we gather all statements from the top 5 clusters of each category,
     then produce a single summary per category.
     """
-
-    from helper.prompt_templates import prompt_template_top5
-    from helper.utils import api_settings
 
     # Ensure timestamps are datetime (if not already)
     if not pd.api.types.is_datetime64_any_dtype(df['pp_timestamp']):
@@ -337,7 +306,6 @@ def generate_big_picture_summary(df: pd.DataFrame,
         If there are more than 150 statements, randomly sample 150.
         Then calls the LLM *once* to summarize them all together.
         """
-
 
         # 1) Collect all cluster names
         top_cluster_names = top_df['hdbscan_id_name'].unique().tolist()
