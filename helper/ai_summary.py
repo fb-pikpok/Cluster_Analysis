@@ -1,5 +1,6 @@
 import pandas as pd
-from helper.utils import api_settings, logger, track_tokens, prompt_tokens, completion_tokens
+from helper.utils import api_settings, logger
+import utils as utils
 from helper.prompt_templates import prompt_template_top5, prompt_template_summary_short
 import random
 
@@ -174,9 +175,9 @@ def generate_cluster_report(
                     {"role": "user", "content": prompt_topic},
                 ]
             )
-            track_tokens(response)
+            utils.track_tokens(response)
             summary_text = response.choices[0].message.content.strip()
-            logger.info(f"Total tokens used: {prompt_tokens + completion_tokens}")
+            logger.info(f"Total tokens used: {utils.prompt_tokens + utils.completion_tokens}")
 
         except Exception as e:
             logger.error(f"Error summarizing cluster {cluster_name}: {e}")
@@ -347,9 +348,9 @@ def generate_big_picture_summary(df: pd.DataFrame,
                     }
                 ]
             )
-            track_tokens(response)
+            utils.track_tokens(response)
             summary_text = response.choices[0].message.content.strip()
-            logger.info(f"Tokens used so far: {prompt_tokens + completion_tokens}")
+            logger.info(f"Tokens used so far: {utils.prompt_tokens + utils.completion_tokens}")
             return summary_text
 
         except Exception as e:

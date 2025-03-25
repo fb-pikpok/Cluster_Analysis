@@ -3,7 +3,8 @@ import os
 import pandas as pd
 from pathlib import Path
 from lingua import Language, LanguageDetectorBuilder
-from helper.utils import *
+import helper.utils as utils
+from helper.utils import logger, api_settings, read_json
 from helper.prompt_templates import *
 
 # region Translation
@@ -32,11 +33,11 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
     """
     # Step 1: Load existing data or start fresh
     if os.path.exists(file_path):
-        logger.info(f"Loading existing translated reviews from: {file_path}")
+        utils.logger.info(f"Loading existing translated reviews from: {file_path}")
         existing_df = pd.read_pickle(file_path)
         existing_ids = set(existing_df[id_column].unique())
     else:
-        logger.info("No existing translation file found. Starting fresh.")
+        utils.logger.info("No existing translation file found. Starting fresh.")
         existing_df = pd.DataFrame(columns=df.columns)
         existing_ids = set()
 
@@ -44,7 +45,7 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
     new_data = []
     num_translated = 0  # Counter for translated reviews
     new_reviews_count = len(df[~df[id_column].isin(existing_ids)])
-    logger.info(f"Found {new_reviews_count} new reviews to check for translation.")
+    utils.logger.info(f"Found {new_reviews_count} new reviews to check for translation.")
 
     for _, row in df.iterrows():
         review_id = row[id_column]
@@ -68,15 +69,15 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
                 logger.info(f"Translating review ID: {review_id} (Detected Language: {detected_language})")
                 prompt_translation = prompt_template_translation.format(text=text)
                 response = api_settings["client"].chat.completions.create(
-                    model=api_settings["model"],
+                    model= api_settings["model"],
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant for translation."},
                         {"role": "user", "content": prompt_translation},
                     ]
                 )
-                track_tokens(response)
+                utils.track_tokens(response)
                 translated_text = response.choices[0].message.content.strip()
-                logger.info(f'Total Tokens used: Prompt: {prompt_tokens}, Completion: {completion_tokens}')
+                logger.info(f'Total Tokens used: Prompt: {utils.prompt_tokens}, Completion: {utils.completion_tokens}')
                 row[text_column] = translated_text  # Overwrite player statement with translated text
                 num_translated += 1  # Increment translation counter
 
@@ -124,20 +125,21 @@ def extract_topics(entry, entry_id, prompt_template_topic, api_settings, review_
         dict: Extracted topics in JSON format.
     """
 
-    prompt_topic = prompt_template_topic.format(review=entry[review_column])
+    # prompt_topic = prompt_template_topic.format(review=entry[review_column])
+    prompt_topic = prompt_template_topic_zendesk.format(zendesk_ticket=entry[review_column])
     logger.info(f"Extracting topics for entry ID {entry_id}")
 
     try:
         response = api_settings["client"].chat.completions.create(
-            model=api_settings["model"],
+            model= api_settings["model"],
             messages=[
-                {"role": "system", "content": "You are an expert in extracting topics from user reviews."},
+                {"role": "system", "content": "You are an expert in extracting topics from user feedback."},
                 {"role": "user", "content": prompt_topic},
             ],
             max_tokens=4096,
             response_format={"type": "json_object"}
         )
-        track_tokens(response)
+        utils.track_tokens(response)
         response_json = json.loads(response.choices[0].message.content)
 
         # Normalize the "topics" key
@@ -190,14 +192,14 @@ def analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_s
                 review=topic["Context"], topic=topic["Topic"]
             )
             response = api_settings["client"].chat.completions.create(
-                model=api_settings["model"],
+                model= api_settings["model"],
                 messages=[
                     {"role": "system", "content": "You are a helpful assistant for sentiment analysis."},
                     {"role": "user", "content": prompt_sentiment},
                 ],
                 max_tokens=1024,
             )
-            track_tokens(response)
+            utils.track_tokens(response)
             sentiment = response.choices[0].message.content.strip()
             entry["topics"].append({
                 "topic": topic["Topic"],
@@ -232,9 +234,9 @@ def process_entry(entry, id_column, prompt_template_topic, prompt_template_senti
         entry_id = entry.get(id_column, "unknown")
         topics = extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns_of_interest)
         analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_settings)
-        logger.info(f'Total Tokens used: Prompt: {prompt_tokens}, Completion: {completion_tokens}')
+        logger.info(f'Total Tokens used: Prompt: {utils.prompt_tokens}, Completion: {utils.completion_tokens}')
     except Exception as e:
-        logger.error(f"Error processing entry ID {entry[{id_column}]}: {e}")
+       logger.error(f"Error processing entry ID {entry[{id_column}]}: {e}")
     return entry
 
 # endregion

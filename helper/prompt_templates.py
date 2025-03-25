@@ -38,8 +38,6 @@ prompt_template_topic = PromptTemplate.from_template(
 '''
 Please list the most important topics and their respective original context in the review of a game in a JSON format with "Topic", "Category", and "Context" arguments.
 The Topic should focus on a specific game feature or aspect. The Category should be either "fact" or "request". The Context should be a direct excerpt from the review that explains the topic.
-Players have been ask "Is there anything you currently find frustrating in the Show Jumping?"
-Avoid repeating the central feature "Show Jumping" in every topic unless it is strictly necessary.
 No more than 10 topics.
 Respond in JSON format.
 
@@ -234,6 +232,115 @@ REVIEW:
 
 
 "{review}"
+
+
+TOPICS:
+
+
+'''
+)
+
+prompt_template_topic_zendesk = PromptTemplate.from_template(
+'''
+Please list the most important topics and their respective original context from the Zendesk ticket in a JSON format with "Topic", "Category", and "Context" arguments.
+Ignore disclaimers, signatures, or forwarded message headers unless they contain an actual game-related fact or request.
+"Topic" should focus on a specific feature or aspect. Group single user statements as one topic if they address only one concern; split only if there are multiple distinct issues.
+"Category" must be either "fact" or "request".
+"Context" is a direct quote or excerpt from the ticket that explains the topic.
+Return no more than 10 topics. Respond in valid JSON format only.
+
+[h0]==================================================================[\h0]
+TICKET:
+
+"The camera during show jumping feels awkward—it’s hard to follow the horse smoothly. Also, the hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
+
+TOPICS:
+
+{{
+   "Topics": [
+       {{
+           "Topic": "Camera Movement",
+           "Category": "request",
+           "Context": "The camera during show jumping feels awkward—it’s hard to follow the horse smoothly."
+       }},
+       {{
+           "Topic": "Fence Hitboxes",
+           "Category": "request",
+           "Context": "The hitboxes for fences seem inconsistent. Sometimes, it feels like the horse clears a fence but still gets penalized."
+       }}
+   ]
+}}
+
+[h0]==================================================================[\h0]
+TICKET:
+
+"Linda E, MS, CCS
+Sent from my iPad
+1234@me.com
+
+THE ONLY THING NECESSARY FOR EVIL TO TRIUMPH 
+IS THAT GOOD MEN DO NOTHING.
+
+Begin forwarded message:
+
+> From: Linda Peoples <1234@icloud.com>
+> Subject: Correct map needed
+>
+> This is not a request or wish - this is a necessity.
+> You need to put the correct maps at the bottom left hand corner of each flat race.
+> THIS needs to be corrected before any traits, or colors, or other fluff is added - this is paramount to the correctness of the game.
+> PLEASE FIX IT.
+> Sincerely,
+> Linda
+
+To unsubscribe from this group and stop receiving emails from it, send an email to support+unsubscribe@test.com.
+image0.jpeg
+
+TOPICS:
+
+{{  
+    "Topics": [ 
+       {{ 
+           "Topic": "Map Accuracy", 
+           "Category": "request", 
+           "Context": "You need to put the correct maps at the bottom left hand corner of each flat race." 
+       }} 
+   ] 
+}}
+
+
+[h0]==================================================================[\h0]
+TICKET:
+
+"Description: Sound goes in and out and sometimes comes back but most of the time I have to close the app and restart it, very annoying and makes me not like the game as much. 
+
+Question or inquiry:  
+
+In-Game Username: Laura456
+
+Order ID:  
+
+Steps to Reproduce: Happens randomly but almost every single time I play the game and even if I reload the game it still happens. Sound stops while playing at random times. Nothing specifically happens to produce the outcome, simply playing the game at all it happens. 
+"
+
+TOPICS:
+
+{{
+    "Topics": [
+        {{
+            "Topic": "Sound loss",
+            "Category": "fact",
+            "Context": "Sound goes in and out and sometimes comes back but most of the time I have to close the app and restart it... Happens randomly but almost every single time I play the game and even if I reload the game it still happens"
+        }}
+    ]
+}}
+
+
+[h0]==================================================================[\h0]
+TICKET:
+
+
+"{zendesk_ticket}"
 
 
 TOPICS:
