@@ -3,6 +3,14 @@ import json
 import random
 import numpy as np
 import pandas as pd
+import openai
+
+# environment variables
+from dotenv import dotenv_values
+import os
+d = dotenv_values()
+for k in d.keys():
+    os.environ[k] = d[k]
 
 # Setup the logger
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -10,53 +18,37 @@ logger = logging.getLogger(__name__)
 
 logging.getLogger("httpx").setLevel(logging.ERROR)      # Supress API HTTP request logs
 
+# Initialize global token counters
+prompt_tokens = 0
+completion_tokens = 0
 
-# region API related
+def track_tokens(response):
+    """
+    Track Tokens when OpenAI API is used.
+    """
+    global prompt_tokens, completion_tokens
+    prompt_tokens += response.usage.prompt_tokens
+    completion_tokens += response.usage.completion_tokens
+
+# region API
 api_settings = {"client": None, "model": None}
 
-
-def configure_api(api_client, model_name):
+def configure_api(model_name):
     """
     Configures the global API client and model.
     Args:
-        api_client: The initialized OpenAI client.
         model_name (str): The model name to use.
     """
     global api_settings
-    api_settings["client"] = api_client
+    openai.api_key = os.getenv("OPENAI_API_KEY")
+    api_settings["client"] = openai.Client()
     api_settings["model"] = model_name
-
-
 # endregion
 
 # region Readers and Writers
-def load_excel_to_data(excel_path):
-    """
-    Loads an Excel file and converts it into a list of dictionaries,
-    ensuring proper encoding.
-
-    Args:
-        excel_path (str): Path to the input Excel file.
-    Returns:
-        list: List of dictionaries representing the data.
-    """
-    try:
-        logger.info("Loading Excel file: %s", excel_path)
-        dataframe = pd.read_excel(excel_path, engine='openpyxl')  # Ensure the correct engine is used
-        data_as_dict = dataframe.to_dict(orient='records')
-        if data_as_dict:
-            logger.info("Removing the first entry of the dataset.")
-            data_as_dict = data_as_dict[1:]  # Remove the first row if necessary
-        logger.info("Excel data successfully loaded and converted to dictionary.")
-        return data_as_dict
-    except Exception as e:
-        logger.error("Error loading Excel: %s", e)
-        raise
-
 def save_to_json(data, output_path):
     """
     Saves data to a JSON file with proper encoding.
-
     Args:
         data (list): Data to save.
         output_path (str): Path to the output JSON file.
@@ -82,29 +74,6 @@ def save_df_as_json(data, file_path):
     with open(file_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=4, ensure_ascii=False)
 
-def json_to_table(json_data):
-    """
-    Converts the embedded JSON data into a flat table format.
-    Args:
-        json_data (list): List of review entries containing topics and embeddings.
-    Returns:
-        pd.DataFrame: A flattened table of all topics with additional fields.
-    """
-    logger.info("Converting JSON data to a table format.")
-
-    # Collect flattened records
-    flattened_records = []
-    for review_entry in json_data:
-        if "topics" in review_entry and isinstance(review_entry["topics"], list):
-            for topic in review_entry["topics"]:
-                # Combine the topic with additional fields in the review entry
-                flattened_record = {**topic, **{k: v for k, v in review_entry.items() if k != "topics"}}
-                flattened_records.append(flattened_record)
-
-    # Convert flattened records to a DataFrame
-    df_total = pd.DataFrame.from_records(flattened_records)
-    logger.info("Conversion to table format completed.")
-    return df_total
 
 def save_data_for_streamlit(df, output_path):
     """
@@ -153,7 +122,6 @@ def read_json(file_path):
         raise
 
 # endregion
-
 
 # region Data Processing
 def get_random_sample(data, sample_size, seed=None):
@@ -274,3 +242,4 @@ def generate_ID(data):
         if "response_ID" not in entry:
             entry["response_ID"] = idx
     return data
+# endregion

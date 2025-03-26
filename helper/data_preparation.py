@@ -12,6 +12,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 def load_excel_to_data(excel_path):
     """
     Loads an Excel file and converts it into a list of dictionaries.

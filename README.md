@@ -37,8 +37,6 @@
 <!-- ABOUT THE PROJECT -->
 ## About The Project
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
-
 This projects is experimental. The idea is that that everyone who runs this project is able to analyse different sources
 of natural language data and extract insights from it.
 
@@ -80,22 +78,7 @@ That being said, the LLMs are very good at extracting topics and sentiments from
 <!-- GETTING STARTED -->
 ## Getting Started
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
-
-### Prerequisites
-
-Run the requirements.txt file to install the necessary packages
-*
-  ```sh
-  pip install -r requirements.txt
-  ```
-
-Install the Community package of langchain
-*
-    ```sh
-    pip install -U langchain-community
-    ```
+To get a local copy up and running follow these steps:
 
 ### Installation
 
@@ -114,59 +97,67 @@ Install the Community package of langchain
       ```
 4. Rename `.RENAMEenv` to `.env` and enter your API key (Optional: Redshift credentials)
 
-5. Adjust your paths in the Notebook you are using e.g. `HRC.ipynb`
+5. Adjust your paths: This is important because API calls can take seveal hours and we need to save the progress every now and then. Additionally storing data in intermediate steps allows us to keep track of what we have already analysed and avoid processing the same thing twice.
+      - `1.datasource_and_analyse.ipynb`
+         - root_dir = select the main folder where data should be stored
+         - project = type in the name of the project (this will create a folder in your root_dir where all data for the project will be stored)
+      - `2.storage_and_query.ipynb`
+         - raw_data = specify the path for the newly created `db_embedded.json` (this file is in the path you specified in the previous step)
+         - persist_dir = We store the embedded data in a chroma database. To be able to use it we need to specify a path where the database should be stored
+         - collection_name = ChromaDB's wording for the name of the database
+      - `3.ai_summary.ipynb`
+         - root_dir = same as in the first step
+         - project = same as in the first step
+         - input_path = where did you store the data that was created in step 2 using `st_chroma.py`? (best practice is to store it in the same folder and name it `db_final.json`)
 6. Test connection to OpenAI API and the dashboard with streamlit
       ```sh
-      python test_openai.py
+      python helper\\testcases.py
       ```
    ```sh
-    streamlit run app.py
+    streamlit run st_dashboard.py
     ```
+   
 
 
+<!-- Work Flow -->
+## Work Flow & How to use the tool
+
+Once you setup the paths and made sure the API key(s) are working you can start using the tool. The current work flow is not ideal. You will have to use different Jupyter Notebooks and store data in a Vector Database and sometimes as a JSON in your directory. This is because the tool will eventually be a automated pipeline that will run on a server and not on your local machine. However, for now this is the best way to use the tool: 
+
+1. Navigate to `1.datasource_and_analyse.ipynb` and run the first cell. This will fire up the paths and the API client. 
+   Next search for the cell that supports your data source and run it. The cell will ask you to specify the path to the data source 
+   and the column where the text is stored. Once you run the cell the data will be stored in a JSON file in your specified directory. 
+   This JSON file will be used in the next step. NOTE: This execution can take **several hours** depending on the size of the data source.
+
+2. Navigate to `2.storage_and_query.ipynb` and run all cells consecutively. This will embed the data and store it in a Vector Database. 
+   This step is done so we can perform a semantic search in our `st_chroma.py` file. This should be pretty fast.
+
+3. Open `st_chroma.py` and adjust the paths and the collection name to the ones you are using in the previous step
+
+4. In your terminal or a command prompt within the environment you are using run the following command:
+   ```sh
+   streamlit run st_chroma.py
+   ```
+   This will open a new tab in your browser where you can prepare the data for the dashboard.
+   - Klick on **Run Query** to connect to the database you just created and retrive all the data. (You can also filter e.g. perform a semantic search)
+   - Select the cluster parameters (some hints for good results are given in the dashboard, but experiment with it - nothing can go wrong :)
+   - Klick on **Cluster Data**. This can take a couple of seconds when running for the first time. If you are not happy you can always rerun the clustering with new parameters. 
+
+   Rule of thumb: **If the shapes of the data roughly match the way they are colored you are good!**
+
+5. Click on **Name Clusters**. (The more clusters you have the longer this tep takes)
+6. Click on **Download JSON** -> This will be the final output that you can use in the dashboard and for the AI summary. 
+
+7. In a browser navigate to our [PikPok Dashboard](https://topicsentimentextractiontool.streamlit.app/) there you can upload the newly created JSON file and explore the data
+8. Alternative or in Addition: Navigate to `3.ai_summary.ipynb` and run the cells. This will give you a report of the data you just created. 
+   It will contain summaries of individual clusters, the biggest issues and the most important topics.
 
 
-
-<!-- ROADMAP -->
 ## Roadmap
 
 - [x] Add Steamreviews support
 - [x] Add Survey Data
 - [x] Works with transcripts
+- [x] Combine multiple sources
 - [ ] Add Facebook Data
-- [ ] Combine multiple sources
 
-
-
-
-<!-- MARKDOWN LINKS & IMAGES -->
-<!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
-[contributors-shield]: https://img.shields.io/github/contributors/othneildrew/Best-README-Template.svg?style=for-the-badge
-[contributors-url]: https://github.com/othneildrew/Best-README-Template/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/othneildrew/Best-README-Template.svg?style=for-the-badge
-[forks-url]: https://github.com/othneildrew/Best-README-Template/network/members
-[stars-shield]: https://img.shields.io/github/stars/othneildrew/Best-README-Template.svg?style=for-the-badge
-[stars-url]: https://github.com/othneildrew/Best-README-Template/stargazers
-[issues-shield]: https://img.shields.io/github/issues/othneildrew/Best-README-Template.svg?style=for-the-badge
-[issues-url]: https://github.com/othneildrew/Best-README-Template/issues
-[license-shield]: https://img.shields.io/github/license/othneildrew/Best-README-Template.svg?style=for-the-badge
-[license-url]: https://github.com/othneildrew/Best-README-Template/blob/master/LICENSE.txt
-[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
-[linkedin-url]: https://linkedin.com/in/othneildrew
-[product-screenshot]: images/screenshot.png
-[Next.js]: https://img.shields.io/badge/next.js-000000?style=for-the-badge&logo=nextdotjs&logoColor=white
-[Next-url]: https://nextjs.org/
-[React.js]: https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB
-[React-url]: https://reactjs.org/
-[Vue.js]: https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vuedotjs&logoColor=4FC08D
-[Vue-url]: https://vuejs.org/
-[Angular.io]: https://img.shields.io/badge/Angular-DD0031?style=for-the-badge&logo=angular&logoColor=white
-[Angular-url]: https://angular.io/
-[Svelte.dev]: https://img.shields.io/badge/Svelte-4A4A55?style=for-the-badge&logo=svelte&logoColor=FF3E00
-[Svelte-url]: https://svelte.dev/
-[Laravel.com]: https://img.shields.io/badge/Laravel-FF2D20?style=for-the-badge&logo=laravel&logoColor=white
-[Laravel-url]: https://laravel.com
-[Bootstrap.com]: https://img.shields.io/badge/Bootstrap-563D7C?style=for-the-badge&logo=bootstrap&logoColor=white
-[Bootstrap-url]: https://getbootstrap.com
-[JQuery.com]: https://img.shields.io/badge/jQuery-0769AD?style=for-the-badge&logo=jquery&logoColor=white
-[JQuery-url]: https://jquery.com 
