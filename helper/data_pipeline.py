@@ -11,49 +11,48 @@ from helper.prompt_templates import prompt_template_topic, prompt_template_senti
 from helper.embedding import get_embedding, get_offline_embedding, process_embedding, flatten_data
 
 
-def gather_data(root_dir, data_source,
-                query_function,
+def gather_data(root_dir,
+                query_function = None,
                 query_function_args=None,
-                id_column=None,
-                text_column='review',
-                timestamp_column=None,
                 datetime_function=None,
-                longname=None):
-    path_db_prepared = os.path.join(root_dir, data_source, "db_prepared.json")
+                config=None,):
+    path_db_prepared = os.path.join(root_dir, config['data']['data_source'], "db_prepared.json")
     results_json = query_function(*query_function_args) if query_function_args is not None else query_function()
 
     # Save the json
     parsed_json = json.loads(results_json)
     for review in parsed_json:
-        review["pp_data_source"] = data_source
-        review["pp_review_id"] = review.pop(id_column)
-        review["pp_review"] = review.pop(text_column)
-        review["pp_timestamp"] = review.pop(timestamp_column)
+        review["pp_data_source"] = config['data']['data_source']
+        review["pp_review_id"] = review.pop(config['data']['id_column'])
+        review["pp_review"] = review.pop(config['data']['text_column'])
+        review["pp_timestamp"] = review.pop(config['data']['timestamp_column'])
         if datetime_function is not None:
             review["pp_timestamp"] = str(datetime_function(review["pp_timestamp"]))
-        if longname is not None:
-            review["pp_longname"] = longname
+        if config['data']['longname'] is not None:
+            review["pp_longname"] = config['data']['longname']
 
     # 2) Then pretty-print with indentation
     save_to_json(parsed_json, path_db_prepared)
 
 
-def translate_data(root_dir, data_source):
-    path_db_prepared = os.path.join(root_dir, data_source, "db_prepared.json")
-    path_db_translated = os.path.join(root_dir, data_source, "db_translated.json")
+def translate_data(root_dir, config):
+    path_db_prepared = os.path.join(root_dir, config['data']['data_source'], "db_prepared.json")
+    path_db_translated = os.path.join(root_dir, config['data']['data_source'], "db_translated.json")
 
     # Get Language Tag
     data = read_json(path_db_prepared)
     df = pd.DataFrame(data)
 
     # Translate the data
-    translate_reviews(df, path_db_translated, id_column="pp_review_id",
-                      text_column="pp_review")  # column with language tag
+    translate_reviews(df, path_db_translated,
+                      id_column="pp_review_id",
+                      text_column="pp_review",
+                      prompt_template_translation = config['templates']['prompt_template_translation'])  # column with language tag
 
 
-def analyse_data(root_dir, data_source):
-    path_db_translated = os.path.join(root_dir, data_source, "db_translated.json")
-    path_db_analysed = os.path.join(root_dir, data_source, "db_analysed.json")
+def analyse_data(root_dir, config):
+    path_db_translated = os.path.join(root_dir, config['data']['data_source'], "db_translated.json")
+    path_db_analysed = os.path.join(root_dir, config['data']['data_source'], "db_analysed.json")
 
 
     # TODO: currently we store the data sometimes as dataframe and sometimes as JSON. This should be unified at some point.
@@ -62,7 +61,7 @@ def analyse_data(root_dir, data_source):
     data_prepared = data.to_dict(orient='records')
 
     id_column = "pp_review_id"  # The column that contains unique identifiers
-    columns_of_interest = "pp_review"  # The column that are going to be analyzed
+    review_column = "pp_review"  # The column that are going to be analyzed
     all_entries = []
     processed_ids = set()
 
@@ -84,10 +83,10 @@ def analyse_data(root_dir, data_source):
         process_entry(
             entry,
             id_column,
-            prompt_template_topic,
-            prompt_template_sentiment,
-            api_settings,
-            columns_of_interest
+            prompt_template_topic = config['templates']['prompt_template_topic'],
+            prompt_template_sentiment = config['templates']['prompt_template_sentiment'],
+            api_settings=api_settings,
+            review_column = review_column
         )
         all_entries.append(entry)
         processed_ids.add(current_id)  # mark as processed
@@ -102,9 +101,9 @@ def analyse_data(root_dir, data_source):
     logger.info(f"###### All entries have been analysed and final results saved. ###### {os.linesep}")
 
 
-def embed_data(root_dir, data_source, embed_key):
-    path_db_analysed = os.path.join(root_dir, data_source, "db_analysed.json")
-    path_db_embedded = os.path.join(root_dir, data_source, "db_embedded.json")
+def embed_data(root_dir, config):
+    path_db_analysed = os.path.join(root_dir, config['data']['data_source'], "db_analysed.json")
+    path_db_embedded = os.path.join(root_dir, config['data']['data_source'], "db_embedded.json")
 
     data = read_json(path_db_analysed)
 
@@ -126,7 +125,7 @@ def embed_data(root_dir, data_source, embed_key):
             continue
 
         logger.info(f"Processing entry {i} with ID {entry[id_column]}")
-        process_embedding(entry, id_column, embed_key)
+        process_embedding(entry, id_column, config['data']['embed_key'])
         all_entries.append(entry)
         processed_ids.add(current_id)
 

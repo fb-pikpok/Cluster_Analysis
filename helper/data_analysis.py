@@ -5,7 +5,6 @@ from pathlib import Path
 from lingua import Language, LanguageDetectorBuilder
 import helper.utils as utils
 from helper.utils import logger, api_settings, read_json
-from helper.prompt_templates import *
 
 # region Translation
 # Initialize language detector
@@ -14,8 +13,9 @@ detector = LanguageDetectorBuilder.from_languages(
     Language.ENGLISH, Language.SPANISH, Language.CHINESE, Language.GERMAN, Language.FRENCH, Language.PORTUGUESE, Language.ARABIC, Language.RUSSIAN
 ).build()
 
+
 # Detect language and translate non-English reviews
-def translate_reviews(df, file_path, id_column='recommendationid', text_column='review_text'):
+def translate_reviews(df, file_path, id_column, text_column, prompt_template_translation):
     """
     Processes reviews by checking for existing translations, detecting language, and translating non-English reviews.
     New rows are appended to the existing file, and the updated DataFrame is saved.
@@ -80,7 +80,7 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
                 num_translated += 1  # Increment translation counter
 
             # Append the updated row
-            row['pp_language'] = detected_language
+            row['pp_language'] = detected_language      # Add detected language to new col 'pp_language'
             new_data.append(row)
 
         except Exception as e:
@@ -107,7 +107,7 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
 
 
 # region Extract Topics and Sentiments
-def extract_topics(entry, entry_id, prompt_template_topic, api_settings, review_column):
+def extract_topics(entry, entry_id, api_settings, prompt_template_topic, review_column):
     """
     All specified review fields are combined into a single review text.
     The combined review text is then used to extract topics using the API.
@@ -117,14 +117,13 @@ def extract_topics(entry, entry_id, prompt_template_topic, api_settings, review_
         entry_id (str): The ID from the users specified ID column (only used for logging).
         prompt_template_topic (PromptTemplate): The template used for topic extraction.
         api_settings (dict): API configuration from utils.py.
-        columns_of_interest (list): List of fields to combine for the review.
+        review_column (list): List of fields to combine for the review.
 
     Returns:
         dict: Extracted topics in JSON format.
     """
 
-    # prompt_topic = prompt_template_topic.format(review=entry[review_column])
-    prompt_topic = prompt_template_topic_zendesk.format(zendesk_ticket=entry[review_column])
+    prompt_topic = prompt_template_topic.format(review=entry[review_column])
     logger.info(f"Extracting topics for entry ID {entry_id}")
 
     try:
@@ -210,7 +209,7 @@ def analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_s
             raise
 
 
-def process_entry(entry, id_column, prompt_template_topic, prompt_template_sentiment, api_settings, columns_of_interest):
+def process_entry(entry, id_column, prompt_template_topic, prompt_template_sentiment, api_settings, review_column):
     """
     Processes a single entry by extracting topics (extract_topics)
     and analyzing their sentiments (analyze_sentiments).
@@ -230,7 +229,7 @@ def process_entry(entry, id_column, prompt_template_topic, prompt_template_senti
 
     try:
         entry_id = entry.get(id_column, "unknown")
-        topics = extract_topics(entry, entry_id, prompt_template_topic, api_settings, columns_of_interest)
+        topics = extract_topics(entry, entry_id, api_settings,prompt_template_topic, review_column)
         analyze_sentiments(entry, entry_id, topics, prompt_template_sentiment, api_settings)
         logger.info(f'Total Tokens used: Prompt: {utils.prompt_tokens}, Completion: {utils.completion_tokens}')
     except Exception as e:
