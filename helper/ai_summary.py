@@ -1,6 +1,6 @@
 import pandas as pd
 from helper.utils import api_settings, logger
-import utils as utils
+import helper.utils as utils
 from helper.prompt_templates import prompt_template_top5, prompt_template_summary_short
 import random
 
