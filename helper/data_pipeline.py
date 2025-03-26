@@ -38,7 +38,7 @@ def gather_data(root_dir, data_source,
     save_to_json(parsed_json, path_db_prepared)
 
 
-def translate_data(root_dir, data_source, language_column):
+def translate_data(root_dir, data_source):
     path_db_prepared = os.path.join(root_dir, data_source, "db_prepared.json")
     path_db_translated = os.path.join(root_dir, data_source, "db_translated.json")
 
@@ -47,11 +47,8 @@ def translate_data(root_dir, data_source, language_column):
     df = pd.DataFrame(data)
 
     # Translate the data
-    translate_reviews(df,
-                      path_db_translated,                   # checks what & if data is already translated (backup)
-                      id_column="pp_review_id",             # column with unique identifier
-                      text_column="pp_review",
-                      language_column=language_column)      # column with language tag
+    translate_reviews(df, path_db_translated, id_column="pp_review_id",
+                      text_column="pp_review")  # column with language tag
 
 
 def analyse_data(root_dir, data_source):

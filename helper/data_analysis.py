@@ -15,8 +15,7 @@ detector = LanguageDetectorBuilder.from_languages(
 ).build()
 
 # Detect language and translate non-English reviews
-def translate_reviews(df, file_path, id_column='recommendationid', text_column='review_text',
-                    language_column='language'):
+def translate_reviews(df, file_path, id_column='recommendationid', text_column='review_text'):
     """
     Processes reviews by checking for existing translations, detecting language, and translating non-English reviews.
     New rows are appended to the existing file, and the updated DataFrame is saved.
@@ -26,7 +25,6 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
         file_path (str): Path to save or load the existing file.
         id_column (str): Column containing unique IDs for comparison.
         text_column (str): Column containing review text.
-        language_column (str): Column to store detected languages.
 
     Returns:
         pd.DataFrame: Updated DataFrame with all reviews (existing and new).
@@ -82,7 +80,7 @@ def translate_reviews(df, file_path, id_column='recommendationid', text_column='
                 num_translated += 1  # Increment translation counter
 
             # Append the updated row
-            row[language_column] = detected_language
+            row['pp_language'] = detected_language
             new_data.append(row)
 
         except Exception as e:
